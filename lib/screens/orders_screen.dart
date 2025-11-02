@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'order_details_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -22,33 +23,63 @@ class _OrdersScreenState extends State<OrdersScreen> {
   final List<Map<String, dynamic>> _orders = [
     {
       'id': '1',
+      'orderNumber': 'BR12345',
       'recipient': 'Ana Silva',
       'date': '15/07/2024',
       'status': 'Pendente',
+      'block': 'A',
+      'apartment': '101',
+      'receivedBy': 'João - Porteiro',
+      'receivedDate': '15 de Julho de 2024, 10:30',
+      'observations': 'Caixa grande, frágil.',
     },
     {
       'id': '2',
+      'orderNumber': 'BR12346',
       'recipient': 'Carlos Pereira',
       'date': '14/07/2024',
       'status': 'Entregue',
+      'block': 'B',
+      'apartment': '204',
+      'receivedBy': 'Maria - Porteira',
+      'receivedDate': '14 de Julho de 2024, 14:15',
+      'observations': 'Pacote pequeno.',
     },
     {
       'id': '3',
+      'orderNumber': 'BR12347',
       'recipient': 'Beatriz Costa',
       'date': '13/07/2024',
       'status': 'Pendente',
+      'block': 'C',
+      'apartment': '305',
+      'receivedBy': 'Pedro - Porteiro',
+      'receivedDate': '13 de Julho de 2024, 09:45',
+      'observations': 'Encomenda expressa.',
     },
     {
       'id': '4',
+      'orderNumber': 'BR12348',
       'recipient': 'Daniel Santos',
       'date': '12/07/2024',
       'status': 'Entregue',
+      'block': 'A',
+      'apartment': '102',
+      'receivedBy': 'Ana - Porteira',
+      'receivedDate': '12 de Julho de 2024, 16:20',
+      'observations': 'Documento importante.',
     },
     {
       'id': '5',
+      'orderNumber': 'BR12349',
       'recipient': 'Fernanda Lima',
       'date': '11/07/2024',
       'status': 'Pendente',
+      'block': 'B',
+      'apartment': '203',
+      'receivedBy': 'Carlos - Porteiro',
+      'receivedDate': '11 de Julho de 2024, 11:30',
+      'observations': 'Produto eletrônico.',
     },
   ];
 
@@ -228,102 +259,124 @@ class _OrdersScreenState extends State<OrdersScreen> {
   Widget _buildOrderCard(Map<String, dynamic> order) {
     final isDelivered = order['status'] == 'Entregue';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+    return GestureDetector(
+      onTap: () {
+        _navigateToOrderDetails(order);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Ícone do pacote
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.inventory_2,
+                color: Color(0xFF2196F3),
+                size: 24,
+              ),
+            ),
+
+            const SizedBox(width: 16),
+
+            // Informações da encomenda
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    order['recipient'],
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF2C3E50),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Recebido em ${order['date']}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF7F8C8D),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Status
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDelivered
+                    ? const Color(0xFFE8F5E8)
+                    : const Color(0xFFFFF3CD),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: isDelivered
+                          ? const Color(0xFF4CAF50)
+                          : const Color(0xFFFFC107),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    order['status'],
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: isDelivered
+                          ? const Color(0xFF2E7D32)
+                          : const Color(0xFFF57C00),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            // Ícone de seta para indicar que é clicável
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: Color(0xFF7F8C8D),
+              size: 16,
+            ),
+          ],
+        ),
       ),
-      child: Row(
-        children: [
-          // Ícone do pacote
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F5F5),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.inventory_2,
-              color: Color(0xFF2196F3),
-              size: 24,
-            ),
-          ),
+    );
+  }
 
-          const SizedBox(width: 16),
-
-          // Informações da encomenda
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  order['recipient'],
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF2C3E50),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Recebido em ${order['date']}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF7F8C8D),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Status
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: isDelivered
-                  ? const Color(0xFFE8F5E8)
-                  : const Color(0xFFFFF3CD),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: isDelivered
-                        ? const Color(0xFF4CAF50)
-                        : const Color(0xFFFFC107),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  order['status'],
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: isDelivered
-                        ? const Color(0xFF2E7D32)
-                        : const Color(0xFFF57C00),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+  void _navigateToOrderDetails(Map<String, dynamic> order) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => OrderDetailsScreen(order: order),
       ),
     );
   }

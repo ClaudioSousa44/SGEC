@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'scan_result_screen.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -89,41 +90,36 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   void _showScanResult(String imagePath) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Etiqueta Escaneada'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.check_circle,
-              color: Colors.green,
-              size: 48,
-            ),
-            const SizedBox(height: 16),
-            const Text('Etiqueta escaneada com sucesso!'),
-            const SizedBox(height: 8),
-            Text(
-              'Código: #${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2196F3),
-              ),
-            ),
-          ],
+    // Simular dados escaneados da etiqueta
+    // Em um app real, aqui você processaria a imagem e extrairia os dados
+    final scannedData = _simulateScannedData();
+    
+    // Navegar para a tela de resultado
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => ScanResultScreen(
+          residentName: scannedData['residentName']!,
+          block: scannedData['block']!,
+          apartment: scannedData['apartment']!,
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Fechar dialog
-              Navigator.of(context).pop(); // Voltar para scan screen
-            },
-            child: const Text('OK'),
-          ),
-        ],
       ),
     );
+  }
+
+  Map<String, String> _simulateScannedData() {
+    // Simular diferentes dados baseados no timestamp
+    final now = DateTime.now();
+    final seed = now.millisecondsSinceEpoch % 3;
+    
+    final residents = ['Mariana Oliveira', 'João Silva', 'Ana Costa'];
+    final blocks = ['Bloco A', 'Bloco B', 'Bloco C'];
+    final apartments = ['Apto 101', 'Apto 204', 'Apto 305'];
+    
+    return {
+      'residentName': residents[seed],
+      'block': blocks[seed],
+      'apartment': apartments[seed],
+    };
   }
 
   void _showPermissionDialog() {

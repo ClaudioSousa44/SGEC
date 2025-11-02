@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'camera_screen.dart';
+import 'manual_register_screen.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -14,6 +15,15 @@ class _ScanScreenState extends State<ScanScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => const CameraScreen(),
+      ),
+    );
+  }
+
+  void _navigateToManualRegister() {
+    // Navegar para a tela de cadastro manual
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const ManualRegisterScreen(),
       ),
     );
   }
@@ -124,6 +134,39 @@ class _ScanScreenState extends State<ScanScreen> {
             ),
 
             const SizedBox(height: 48),
+
+            // Botão de cadastro manual
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: OutlinedButton.icon(
+                onPressed: _navigateToManualRegister,
+                icon: const Icon(
+                  Icons.edit_note,
+                  color: Color(0xFF2196F3),
+                  size: 20,
+                ),
+                label: const Text(
+                  'Cadastrar Manualmente',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2196F3),
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(
+                    color: Color(0xFF2196F3),
+                    width: 2,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
 
             // Área de dados escaneados
             Container(
