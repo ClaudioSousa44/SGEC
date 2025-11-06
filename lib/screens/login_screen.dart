@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../models/login_request.dart';
+import '../services/auth_service.dart';
+import '../services/storage_service.dart';
 import 'main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -21,10 +24,8 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin() {
+  Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
-      print('Formulário válido, navegando para home...');
-
       // Mostrar loading
       showDialog(
         context: context,
@@ -34,18 +35,89 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
-      // Simular delay e navegar
-      Future.delayed(const Duration(milliseconds: 500), () {
-        Navigator.of(context).pop(); // Fechar loading
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => const MainScreen(),
-          ),
+      try {
+        // Criar requisição de login
+        final loginRequest = LoginRequest(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
         );
-      });
-    } else {
-      print('Formulário inválido');
+
+        // Realizar login
+        final response = await AuthService.login(loginRequest);
+
+        // Fechar loading
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+
+        // Debug: mostrar resposta
+        print(
+            'Login Response - Success: ${response.success}, Token: ${response.token != null ? "Presente" : "Ausente"}, User: ${response.user != null ? "Presente" : "Ausente"}');
+
+        // Verificar se o login foi bem-sucedido
+        // Considera sucesso se tiver success=true E dados do usuário
+        if (response.success && response.user != null) {
+          // Salvar token e dados do usuário
+          await StorageService.saveUser(response.user!);
+          if (response.token != null) {
+            await StorageService.saveToken(response.token);
+          }
+
+          // Navegar para a tela principal
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => const MainScreen(),
+              ),
+            );
+          }
+        } else {
+          // Mostrar erro de login
+          if (mounted) {
+            _showErrorDialog(
+              response.message ??
+                  'Erro ao realizar login. Credenciais inválidas.',
+            );
+          }
+        }
+      } catch (e) {
+        // Fechar loading
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+
+        // Mostrar erro com mensagem específica da API
+        String errorMessage =
+            'Erro ao conectar com o servidor. Verifique sua conexão e tente novamente.';
+
+        if (e.toString().contains('ApiException')) {
+          // Extrair a mensagem de erro da API
+          errorMessage = e.toString().replaceAll('ApiException: ', '');
+        } else {
+          errorMessage = 'Erro: ${e.toString()}';
+        }
+
+        if (mounted) {
+          _showErrorDialog(errorMessage);
+        }
+      }
     }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Erro no Login'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _handleForgotPassword() {

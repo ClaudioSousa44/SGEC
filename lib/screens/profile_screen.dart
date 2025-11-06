@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../models/login_response.dart';
+import '../services/storage_service.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -9,7 +11,24 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  void _handleLogout() {
+  User? _user;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = await StorageService.getUser();
+    setState(() {
+      _user = user;
+      _isLoading = false;
+    });
+  }
+
+  void _handleLogout() async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -21,14 +40,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Text('Cancelar'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(context).pop(); // Fechar dialog
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(
-                  builder: (context) => const LoginScreen(),
-                ),
-                (route) => false,
-              );
+              // Limpar dados do usuário
+              await StorageService.clearAll();
+              // Navegar para login
+              if (mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (context) => const LoginScreen(),
+                  ),
+                  (route) => false,
+                );
+              }
             },
             child: const Text(
               'Sair',
@@ -64,27 +88,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
 
-            // Avatar e informações básicas
-            _buildProfileHeader(),
+                  // Avatar e informações básicas
+                  _buildProfileHeader(),
 
-            const SizedBox(height: 40),
+                  const SizedBox(height: 40),
 
-            // Seção de Informações
-            _buildInfoSection(),
+                  // Seção de Informações
+                  _buildInfoSection(),
 
-            const SizedBox(height: 40),
+                  const SizedBox(height: 40),
 
-            // Botão de Logout
-            _buildLogoutButton(),
-          ],
-        ),
-      ),
+                  // Botão de Logout
+                  _buildLogoutButton(),
+                ],
+              ),
+            ),
     );
   }
 
@@ -113,9 +139,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 20),
 
         // Nome
-        const Text(
-          'Ricardo Almeida',
-          style: TextStyle(
+        Text(
+          _user?.name ?? 'Usuário',
+          style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
             color: Color(0xFF2C3E50),
@@ -124,10 +150,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         const SizedBox(height: 8),
 
+        // Tipo de usuário
+        if (_user?.role != null)
+          Text(
+            _user!.role!.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF2196F3),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+        const SizedBox(height: 8),
+
         // Turno
-        const Text(
-          'Turno: 14:00-22:00',
-          style: TextStyle(
+        Text(
+          'Turno: ${_user?.turnoFormatado ?? "Não informado"}',
+          style: const TextStyle(
             fontSize: 16,
             color: Color(0xFF7F8C8D),
           ),
@@ -151,29 +190,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         const SizedBox(height: 20),
 
-        // Endereço
-        _buildInfoCard(
-          icon: Icons.location_on,
-          title: 'Endereço',
-          subtitle: 'Rua das Flores, 123',
-        ),
+        // CPF
+        if (_user?.cpf != null)
+          _buildInfoCard(
+            icon: Icons.badge,
+            title: 'CPF',
+            subtitle: _user!.cpf!,
+          ),
 
-        const SizedBox(height: 16),
+        if (_user?.cpf != null) const SizedBox(height: 16),
+
+        // Endereço
+        if (_user?.enderecoCompleto.isNotEmpty == true)
+          _buildInfoCard(
+            icon: Icons.location_on,
+            title: 'Endereço',
+            subtitle: _user!.enderecoCompleto,
+          ),
+
+        if (_user?.enderecoCompleto.isNotEmpty == true)
+          const SizedBox(height: 16),
 
         // Telefone
-        _buildInfoCard(
-          icon: Icons.phone,
-          title: 'Telefone',
-          subtitle: '(11) 98765-4321',
-        ),
+        if (_user?.telefone != null || _user?.celular != null)
+          _buildInfoCard(
+            icon: Icons.phone,
+            title: _user?.telefone != null ? 'Telefone' : 'Celular',
+            subtitle: _user?.telefone ?? _user?.celular ?? '',
+          ),
 
-        const SizedBox(height: 16),
+        if (_user?.telefone != null || _user?.celular != null)
+          const SizedBox(height: 16),
 
         // Email
         _buildInfoCard(
           icon: Icons.email,
           title: 'Email',
-          subtitle: 'ricardo.almeida@email.com',
+          subtitle: _user?.email ?? 'Não informado',
         ),
       ],
     );

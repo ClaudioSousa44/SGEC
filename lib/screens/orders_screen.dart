@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../models/order.dart';
+import '../services/orders_service.dart';
 import 'order_details_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
@@ -13,94 +15,92 @@ class _OrdersScreenState extends State<OrdersScreen> {
   String _selectedFilter = 'Todas';
   final TextEditingController _searchController = TextEditingController();
 
+  List<Order> _orders = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
+      GlobalKey<RefreshIndicatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOrders();
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
-  // Lista de encomendas de exemplo
-  final List<Map<String, dynamic>> _orders = [
-    {
-      'id': '1',
-      'orderNumber': 'BR12345',
-      'recipient': 'Ana Silva',
-      'date': '15/07/2024',
-      'status': 'Pendente',
-      'block': 'A',
-      'apartment': '101',
-      'receivedBy': 'João - Porteiro',
-      'receivedDate': '15 de Julho de 2024, 10:30',
-      'observations': 'Caixa grande, frágil.',
-    },
-    {
-      'id': '2',
-      'orderNumber': 'BR12346',
-      'recipient': 'Carlos Pereira',
-      'date': '14/07/2024',
-      'status': 'Entregue',
-      'block': 'B',
-      'apartment': '204',
-      'receivedBy': 'Maria - Porteira',
-      'receivedDate': '14 de Julho de 2024, 14:15',
-      'observations': 'Pacote pequeno.',
-    },
-    {
-      'id': '3',
-      'orderNumber': 'BR12347',
-      'recipient': 'Beatriz Costa',
-      'date': '13/07/2024',
-      'status': 'Pendente',
-      'block': 'C',
-      'apartment': '305',
-      'receivedBy': 'Pedro - Porteiro',
-      'receivedDate': '13 de Julho de 2024, 09:45',
-      'observations': 'Encomenda expressa.',
-    },
-    {
-      'id': '4',
-      'orderNumber': 'BR12348',
-      'recipient': 'Daniel Santos',
-      'date': '12/07/2024',
-      'status': 'Entregue',
-      'block': 'A',
-      'apartment': '102',
-      'receivedBy': 'Ana - Porteira',
-      'receivedDate': '12 de Julho de 2024, 16:20',
-      'observations': 'Documento importante.',
-    },
-    {
-      'id': '5',
-      'orderNumber': 'BR12349',
-      'recipient': 'Fernanda Lima',
-      'date': '11/07/2024',
-      'status': 'Pendente',
-      'block': 'B',
-      'apartment': '203',
-      'receivedBy': 'Carlos - Porteiro',
-      'receivedDate': '11 de Julho de 2024, 11:30',
-      'observations': 'Produto eletrônico.',
-    },
-  ];
+  Future<void> _loadOrders() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-  List<Map<String, dynamic>> get _filteredOrders {
-    List<Map<String, dynamic>> filtered = _orders;
+    try {
+      // Mapear o filtro selecionado para o status esperado pela API
+      String? statusFilter;
+      if (_selectedFilter == 'Entregues') {
+        statusFilter = 'Entregue';
+      } else if (_selectedFilter == 'Pendentes') {
+        statusFilter = 'Aguardando retirada';
+      }
+      // Se for 'Todas', statusFilter fica null para buscar todas
 
-    // Filtrar por status
-    if (_selectedFilter != 'Todas') {
-      filtered = filtered
-          .where((order) => order['status'] == _selectedFilter)
-          .toList();
+      final orders = await OrdersService.getOrders(
+        status: statusFilter,
+        search: _searchQuery.isNotEmpty ? _searchQuery : null,
+      );
+
+      setState(() {
+        _orders = orders;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
     }
+  }
 
-    // Filtrar por pesquisa
+  Future<void> _refreshOrders() async {
+    await _loadOrders();
+  }
+
+  List<Order> get _filteredOrders {
+    // A filtragem por status já é feita pela API
+    // Apenas fazer filtro local de pesquisa se necessário
+    List<Order> filtered = _orders;
+
+    // Filtrar por pesquisa localmente (caso a API não suporte ou como backup)
     if (_searchQuery.isNotEmpty) {
       filtered = filtered
-          .where((order) => order['recipient']
-              .toLowerCase()
-              .contains(_searchQuery.toLowerCase()))
+          .where((order) =>
+              order.recipient
+                  .toLowerCase()
+                  .contains(_searchQuery.toLowerCase()) ||
+              order.orderNumber
+                  .toLowerCase()
+                  .contains(_searchQuery.toLowerCase()))
           .toList();
     }
+
+    // Também aplicar filtro de status localmente como backup
+    // (caso a API não tenha filtrado corretamente)
+    if (_selectedFilter != 'Todas') {
+      final statusToFilter =
+          _selectedFilter == 'Entregues' ? 'Entregue' : 'Aguardando retirada';
+      filtered = filtered
+          .where((order) =>
+              order.status.toLowerCase() == statusToFilter.toLowerCase())
+          .toList();
+    }
+
+    // Ordenar por data (mais recente primeiro)
+    filtered.sort((a, b) => b.date.compareTo(a.date));
 
     return filtered;
   }
@@ -167,6 +167,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   setState(() {
                     _searchQuery = value;
                   });
+                  // Debounce: buscar após 500ms sem digitar
+                  Future.delayed(const Duration(milliseconds: 500), () {
+                    if (_searchQuery == value && mounted) {
+                      _loadOrders();
+                    }
+                  });
                 },
                 decoration: const InputDecoration(
                   hintText: 'Pesquisar encomendas',
@@ -191,14 +197,17 @@ class _OrdersScreenState extends State<OrdersScreen> {
           // Filtros
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              children: [
-                _buildFilterButton('Todas'),
-                const SizedBox(width: 12),
-                _buildFilterButton('Entregues'),
-                const SizedBox(width: 12),
-                _buildFilterButton('Pendentes'),
-              ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildFilterButton('Todas'),
+                  const SizedBox(width: 12),
+                  _buildFilterButton('Pendentes'),
+                  const SizedBox(width: 12),
+                  _buildFilterButton('Entregues'),
+                ],
+              ),
             ),
           ),
 
@@ -206,24 +215,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
           // Lista de encomendas
           Expanded(
-            child: _filteredOrders.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Nenhuma encomenda encontrada',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Color(0xFF7F8C8D),
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    itemCount: _filteredOrders.length,
-                    itemBuilder: (context, index) {
-                      final order = _filteredOrders[index];
-                      return _buildOrderCard(order);
-                    },
-                  ),
+            child: _buildOrdersList(),
           ),
         ],
       ),
@@ -237,6 +229,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
         setState(() {
           _selectedFilter = filter;
         });
+        _loadOrders();
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -256,8 +249,106 @@ class _OrdersScreenState extends State<OrdersScreen> {
     );
   }
 
-  Widget _buildOrderCard(Map<String, dynamic> order) {
-    final isDelivered = order['status'] == 'Entregue';
+  Widget _buildOrdersList() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Color(0xFF7F8C8D),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Erro ao carregar encomendas',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF2C3E50),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF7F8C8D),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _loadOrders,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2196F3),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Tentar Novamente'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_filteredOrders.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.inventory_2_outlined,
+              size: 64,
+              color: Color(0xFF7F8C8D),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Nenhuma encomenda encontrada',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF2C3E50),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Puxe para baixo para atualizar',
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF7F8C8D),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      key: _refreshIndicatorKey,
+      onRefresh: _refreshOrders,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        itemCount: _filteredOrders.length,
+        itemBuilder: (context, index) {
+          final order = _filteredOrders[index];
+          return _buildOrderCard(order);
+        },
+      ),
+    );
+  }
+
+  Widget _buildOrderCard(Order order) {
+    final isDelivered = order.isDelivered;
 
     return GestureDetector(
       onTap: () {
@@ -303,7 +394,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    order['recipient'],
+                    order.recipient,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -312,12 +403,22 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Recebido em ${order['date']}',
+                    '${order.block} - ${order.apartment} | Recebido em ${order.formattedDate}',
                     style: const TextStyle(
                       fontSize: 14,
                       color: Color(0xFF7F8C8D),
                     ),
                   ),
+                  if (order.orderNumber.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'Rastreamento: ${order.orderNumber}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF7F8C8D),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -346,7 +447,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    order['status'],
+                    order.status,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -373,11 +474,33 @@ class _OrdersScreenState extends State<OrdersScreen> {
     );
   }
 
-  void _navigateToOrderDetails(Map<String, dynamic> order) {
-    Navigator.of(context).push(
+  void _navigateToOrderDetails(Order order) {
+    // Converter Order para Map para compatibilidade com OrderDetailsScreen
+    final orderMap = {
+      'id': order.id.toString(),
+      'orderNumber': order.orderNumber,
+      'recipient': order.recipient,
+      'date': order.formattedDate,
+      'status': order.status,
+      'block': order.block,
+      'apartment': order.apartment,
+      'receivedBy': order.receivedBy,
+      'receivedDate': order.receivedDate?.toString() ?? order.date.toString(),
+      'observations': order.observations,
+      'transportCompany': order.transportCompany,
+      'trackingCode': order.trackingCode,
+    };
+
+    Navigator.of(context)
+        .push(
       MaterialPageRoute(
-        builder: (context) => OrderDetailsScreen(order: order),
+        builder: (context) => OrderDetailsScreen(order: orderMap),
       ),
-    );
+    )
+        .then((_) {
+      // Recarregar encomendas quando voltar da tela de detalhes
+      // (caso o status tenha sido alterado)
+      _loadOrders();
+    });
   }
 }
