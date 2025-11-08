@@ -95,12 +95,8 @@ class _ScanScreenState extends State<ScanScreen> {
                 child: Container(
                   width: 200,
                   height: 200,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFF81C784),
-                      width: 4,
-                    ),
                   ),
                   child: Container(
                     margin: const EdgeInsets.all(20),

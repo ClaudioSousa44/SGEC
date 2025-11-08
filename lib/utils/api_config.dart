@@ -3,7 +3,9 @@
 /// Aqui você pode configurar a URL base da API e outras configurações globais
 class ApiConfig {
   // TODO: Substitua pela URL base da sua API
-  static const String baseUrl = 'http://localhost:3000/';
+  // static const String baseUrl = 'http://localhost:3000/';
+  static const String baseUrl =
+      'https://sgec-backend-production.up.railway.app/';
 
   // Timeout padrão para requisições (em segundos)
   static const int timeoutSeconds = 30;
