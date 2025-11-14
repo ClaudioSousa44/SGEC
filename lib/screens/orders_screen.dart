@@ -34,6 +34,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   Future<void> _loadOrders() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -54,11 +56,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
         search: _searchQuery.isNotEmpty ? _searchQuery : null,
       );
 
+      if (!mounted) return;
+
       setState(() {
         _orders = orders;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;

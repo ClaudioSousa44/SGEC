@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import '../models/order.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
@@ -111,6 +114,43 @@ class OrdersService {
   /// Marca uma encomenda como entregue
   static Future<Order> markAsDelivered(int orderId) async {
     return await updateOrderStatus(orderId, 'Entregue');
+  }
+
+  /// Confirma a entrega enviando a assinatura para o backend
+  static Future<Order> confirmDeliveryWithSignature({
+    required int orderId,
+    required Uint8List signatureBytes,
+  }) async {
+    try {
+      final token = await StorageService.getToken();
+      final user = await StorageService.getUser();
+
+      if (user == null) {
+        throw ApiException('Usuário não autenticado.');
+      }
+
+      final payload = {
+        'id_porteiro_entrega': user.id,
+        'assinatura': 'data:image/png;base64,${base64Encode(signatureBytes)}',
+      };
+
+      final response = await ApiService.post(
+        'encomendas/$orderId/entrega',
+        payload,
+        token: token,
+      );
+
+      Map<String, dynamic> orderData;
+      if (response.containsKey('data') && response['data'] is Map) {
+        orderData = response['data'] as Map<String, dynamic>;
+      } else {
+        orderData = response;
+      }
+
+      return Order.fromJson(orderData);
+    } catch (e) {
+      throw ApiException('Erro ao confirmar entrega: ${e.toString()}');
+    }
   }
 
   /// Cria uma nova encomenda (se necessário)

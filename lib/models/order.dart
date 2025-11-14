@@ -39,13 +39,13 @@ class Order {
           json['recipient'] as String? ??
           json['nome_destinatario'] as String? ??
           '',
-      date: json['data_recebimento'] != null
-          ? DateTime.parse(json['data_recebimento'] as String)
-          : json['date'] != null
-              ? DateTime.parse(json['date'] as String)
-              : json['data'] != null
-                  ? _parseDate(json['data'] as String)
-                  : DateTime.now(),
+      date: _firstValidDate([
+            json['data_recebimento'],
+            json['receivedDate'],
+            json['date'],
+            json['data'],
+          ]) ??
+          DateTime.now(),
       status: json['status'] as String? ?? 'Pendente',
       block: json['bloco'] as String? ?? json['block'] as String? ?? '',
       apartment: json['apartamento'] as String? ??
@@ -56,9 +56,9 @@ class Order {
           json['receivedBy'] as String? ??
           json['funcionario'] as String?,
       receivedDate: json['data_recebimento'] != null
-          ? DateTime.parse(json['data_recebimento'] as String)
+          ? _parseIsoDate(json['data_recebimento'])
           : json['receivedDate'] != null
-              ? DateTime.parse(json['receivedDate'] as String)
+              ? _parseIsoDate(json['receivedDate'])
               : null,
       observations: json['observacoes'] as String? ??
           json['observations'] as String? ??
@@ -108,6 +108,40 @@ class Order {
     } catch (e) {
       return DateTime.now();
     }
+  }
+
+  static DateTime? _parseIsoDate(dynamic value) {
+    if (value == null) return null;
+
+    if (value is DateTime) {
+      return value;
+    }
+
+    if (value is String) {
+      final trimmedValue = value.trim();
+      if (trimmedValue.isEmpty) {
+        return null;
+      }
+
+      try {
+        return DateTime.parse(trimmedValue);
+      } catch (_) {
+        // Tentar formatos alternativos (como DD/MM/YYYY)
+        return _parseDate(trimmedValue);
+      }
+    }
+
+    return null;
+  }
+
+  static DateTime? _firstValidDate(List<dynamic> candidates) {
+    for (final candidate in candidates) {
+      final parsed = _parseIsoDate(candidate);
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+    return null;
   }
 
   // Método auxiliar para formatar data

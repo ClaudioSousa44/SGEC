@@ -3,6 +3,7 @@ import '../models/resident.dart';
 import '../models/unit.dart';
 import '../services/residents_service.dart';
 import '../services/orders_service.dart';
+import '../services/storage_service.dart';
 
 class ManualRegisterScreen extends StatefulWidget {
   const ManualRegisterScreen({super.key});
@@ -14,6 +15,7 @@ class ManualRegisterScreen extends StatefulWidget {
 class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
+  final _trackingCodeController = TextEditingController();
 
   List<Resident> _residents = [];
   List<Unit> _units = [];
@@ -35,6 +37,7 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
   @override
   void dispose() {
     _descriptionController.dispose();
+    _trackingCodeController.dispose();
     super.dispose();
   }
 
@@ -440,6 +443,55 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
                 },
               ),
 
+              const SizedBox(height: 20),
+
+              const Text(
+                'Código de Rastreamento (opcional)',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2C3E50),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _trackingCodeController,
+                decoration: InputDecoration(
+                  hintText: 'Ex: BR1234567890BR',
+                  hintStyle: const TextStyle(
+                    color: Color(0xFF7F8C8D),
+                    fontSize: 14,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFF8F9FA),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: Color(0xFFE0E0E0),
+                      width: 1,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: Color(0xFFE0E0E0),
+                      width: 1,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF2196F3),
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+
               const Spacer(),
 
               // Botão Salvar Encomenda
@@ -487,6 +539,20 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
         return;
       }
 
+      final user = await StorageService.getUser();
+      if (user == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Usuário não autenticado. Faça login novamente.'),
+              backgroundColor: Color(0xFFFF5722),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
       // Mostrar loading
       showDialog(
         context: context,
@@ -499,13 +565,12 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
       try {
         // Criar dados da encomenda
         final orderData = {
-          'destinatario': _selectedResident!.name,
-          'id_morador': _selectedResident!.id,
-          'id_unidade': _selectedUnit!.id,
-          'bloco': _selectedUnit!.block,
-          'apartamento': _selectedUnit!.apartment,
-          'observacoes': _descriptionController.text.trim(),
-          'status': 'Pendente',
+          'codigo_rastreio': _trackingCodeController.text.trim().isEmpty
+              ? null
+              : _trackingCodeController.text.trim(),
+          'descricao': _descriptionController.text.trim(),
+          'id_porteiro_recebimento': user.id,
+          'id_morador_destinatario': _selectedResident!.id,
         };
 
         // Salvar encomenda via API

@@ -70,9 +70,9 @@ class OrderDetailsScreen extends StatelessWidget {
                       size: 24,
                     ),
                   ),
-                  
+
                   const SizedBox(width: 16),
-                  
+
                   // Informações da encomenda
                   Expanded(
                     child: Column(
@@ -161,7 +161,8 @@ class OrderDetailsScreen extends StatelessWidget {
                   // Data de Recebimento
                   _buildInfoCard(
                     title: 'Data de Recebimento',
-                    value: order['receivedDate'] ?? '15 de Julho de 2024, 10:30',
+                    value:
+                        order['receivedDate'] ?? '15 de Julho de 2024, 10:30',
                   ),
 
                   const SizedBox(height: 12),
@@ -174,94 +175,95 @@ class OrderDetailsScreen extends StatelessWidget {
 
                   const Spacer(),
 
-                  // Botões de ação
-                  Column(
-                    children: [
-                      // Botão Capturar Assinatura
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            _showSignatureDialog(context);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2196F3),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                  // Botões de ação (apenas quando status = "Aguardando retirada")
+                  if (order['status'] == 'Aguardando retirada')
+                    Column(
+                      children: [
+                        // Botão Capturar Assinatura
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              _showSignatureDialog(context);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2196F3),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
                             ),
-                            elevation: 0,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.check,
+                                    color: Color(0xFF2196F3),
+                                    size: 16,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Text(
+                                  'Capturar Assinatura',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 24,
-                                height: 24,
-                                decoration: const BoxDecoration(
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Botão Excluir Encomenda
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              _showDeleteDialog(context);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFE53E3E),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.delete,
                                   color: Colors.white,
-                                  shape: BoxShape.circle,
+                                  size: 20,
                                 ),
-                                child: const Icon(
-                                  Icons.check,
-                                  color: Color(0xFF2196F3),
-                                  size: 16,
+                                SizedBox(width: 12),
+                                Text(
+                                  'Excluir Encomenda',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'Capturar Assinatura',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Botão Excluir Encomenda
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            _showDeleteDialog(context);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFE53E3E),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              ],
                             ),
-                            elevation: 0,
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.delete,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                              SizedBox(width: 12),
-                              Text(
-                                'Excluir Encomenda',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
 
                   const SizedBox(height: 20),
                 ],
@@ -342,7 +344,7 @@ class OrderDetailsScreen extends StatelessWidget {
         duration: Duration(seconds: 3),
       ),
     );
-    
+
     // Voltar para a tela anterior após 1 segundo
     Future.delayed(const Duration(seconds: 1), () {
       if (context.mounted) {

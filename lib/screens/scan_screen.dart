@@ -178,24 +178,7 @@ class _ScanScreenState extends State<ScanScreen> {
               ),
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Dados da Encomenda:',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF2C3E50),
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    'Os dados da encomenda escaneada aparecerão aqui.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF7F8C8D),
-                    ),
-                  ),
-                ],
+                children: [],
               ),
             ),
           ],
