@@ -406,6 +406,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF2C3E50),
                     ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -414,6 +416,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       fontSize: 14,
                       color: Color(0xFF7F8C8D),
                     ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                   if (order.orderNumber.isNotEmpty) ...[
                     const SizedBox(height: 2),
@@ -423,6 +427,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         fontSize: 12,
                         color: Color(0xFF7F8C8D),
                       ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ],
                 ],
@@ -452,14 +458,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    order.status,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: isDelivered
-                          ? const Color(0xFF2E7D32)
-                          : const Color(0xFFF57C00),
+                  Flexible(
+                    child: Text(
+                      order.status,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: isDelivered
+                            ? const Color(0xFF2E7D32)
+                            : const Color(0xFFF57C00),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                 ],
@@ -495,6 +505,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       'observations': order.observations,
       'transportCompany': order.transportCompany,
       'trackingCode': order.trackingCode,
+      'photoUrl': order.photoUrl,
     };
 
     Navigator.of(context)

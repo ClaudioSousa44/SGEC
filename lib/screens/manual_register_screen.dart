@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import '../models/resident.dart';
 import '../models/unit.dart';
 import '../services/residents_service.dart';
 import '../services/orders_service.dart';
 import '../services/storage_service.dart';
+import 'photo_capture_screen.dart';
 
 class ManualRegisterScreen extends StatefulWidget {
   const ManualRegisterScreen({super.key});
@@ -24,6 +26,7 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
   Resident? _selectedResident;
   String? _selectedBlock;
   Unit? _selectedUnit;
+  String? _photoPath;
 
   bool _isLoadingResidents = true;
   bool _isLoadingUnits = true;
@@ -121,10 +124,18 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
     return blocks;
   }
 
-  // Obter moradores da unidade selecionada
-  List<Resident> get _residentsInUnit {
-    if (_selectedUnit == null) return _residents;
-    return _residents.where((r) => r.unitId == _selectedUnit!.id).toList();
+  Future<void> _takePhoto() async {
+    final photoPath = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (context) => const PhotoCaptureScreen(),
+      ),
+    );
+
+    if (photoPath != null && mounted) {
+      setState(() {
+        _photoPath = photoPath;
+      });
+    }
   }
 
   @override
@@ -153,7 +164,7 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
       ),
       body: Form(
         key: _formKey,
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -492,7 +503,93 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
                 ),
               ),
 
-              const Spacer(),
+              const SizedBox(height: 20),
+
+              // Campo de Foto (obrigatório)
+              const Text(
+                'Foto da Encomenda *',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2C3E50),
+                ),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: _takePhoto,
+                child: Container(
+                  width: double.infinity,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F9FA),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _photoPath == null
+                          ? const Color(0xFFFF5722)
+                          : const Color(0xFF4CAF50),
+                      width: 2,
+                    ),
+                  ),
+                  child: _photoPath == null
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.camera_alt,
+                              size: 48,
+                              color: Color(0xFF7F8C8D),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Toque para tirar foto',
+                              style: TextStyle(
+                                color: Color(0xFF7F8C8D),
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Foto obrigatória',
+                              style: TextStyle(
+                                color: Color(0xFFFF5722),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        )
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            File(_photoPath!),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                ),
+              ),
+              if (_photoPath == null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        size: 16,
+                        color: Color(0xFFFF5722),
+                      ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'Foto é obrigatória',
+                        style: TextStyle(
+                          color: Color(0xFFFF5722),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                ),
+              ),
+
+              const SizedBox(height: 30),
 
               // Botão Salvar Encomenda
               SizedBox(
@@ -527,6 +624,18 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
   }
 
   Future<void> _saveOrder() async {
+    // Validar foto obrigatória
+    if (_photoPath == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, tire uma foto da encomenda'),
+          backgroundColor: Color(0xFFFF5722),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     if (_formKey.currentState!.validate()) {
       if (_selectedResident == null || _selectedUnit == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -573,8 +682,11 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
           'id_morador_destinatario': _selectedResident!.id,
         };
 
-        // Salvar encomenda via API
-        await OrdersService.createOrder(orderData);
+        // Salvar encomenda via API com foto
+        await OrdersService.createOrderWithPhoto(
+          orderData,
+          File(_photoPath!),
+        );
 
         // Fechar loading
         if (mounted) {

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import '../utils/api_config.dart';
@@ -122,6 +123,50 @@ class ApiService {
       return _handleResponse(response);
     } catch (e) {
       throw ApiException('Erro na requisição DELETE: ${e.toString()}');
+    }
+  }
+
+  // Método para upload de arquivo (multipart/form-data)
+  static Future<Map<String, dynamic>> postMultipart(
+    String endpoint,
+    Map<String, String> fields, {
+    String? token,
+    String? fileFieldName,
+    File? file,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl$endpoint');
+
+      final request = http.MultipartRequest('POST', uri);
+
+      // Adicionar headers de autenticação
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      request.headers['Accept'] = 'application/json';
+
+      // Adicionar campos do formulário
+      request.fields.addAll(fields);
+
+      // Adicionar arquivo se fornecido
+      if (file != null && fileFieldName != null) {
+        final fileStream = http.ByteStream(file.openRead());
+        final fileLength = await file.length();
+        final multipartFile = http.MultipartFile(
+          fileFieldName,
+          fileStream,
+          fileLength,
+          filename: file.path.split('/').last,
+        );
+        request.files.add(multipartFile);
+      }
+
+      final streamedResponse = await request.send().timeout(timeoutDuration);
+      final response = await http.Response.fromStream(streamedResponse);
+
+      return _handleResponse(response);
+    } catch (e) {
+      throw ApiException('Erro no upload de arquivo: ${e.toString()}');
     }
   }
 

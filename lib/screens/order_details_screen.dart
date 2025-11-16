@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'signature_screen.dart';
 import '../widgets/delete_request_modal.dart';
 
@@ -34,7 +35,7 @@ class OrderDetailsScreen extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -117,157 +118,240 @@ class OrderDetailsScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // Cartões de informações
-            Expanded(
-              child: Column(
+            // Foto da encomenda (se disponível)
+            if (order['photoUrl'] != null && order['photoUrl'].toString().isNotEmpty)
+              Column(
                 children: [
-                  // Destinatário
-                  _buildInfoCard(
-                    title: 'Destinatário',
-                    value: order['recipient'] ?? 'Ana Silva',
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Bloco e Apartamento (lado a lado)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildInfoCard(
-                          title: 'Bloco',
-                          value: order['block'] ?? 'A',
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildInfoCard(
-                          title: 'Apartamento',
-                          value: order['apartment'] ?? '101',
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Recebido por
-                  _buildInfoCard(
-                    title: 'Recebido por',
-                    value: order['receivedBy'] ?? 'João - Porteiro',
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Data de Recebimento
-                  _buildInfoCard(
-                    title: 'Data de Recebimento',
-                    value:
-                        order['receivedDate'] ?? '15 de Julho de 2024, 10:30',
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Observações
-                  _buildInfoCard(
-                    title: 'Observações',
-                    value: order['observations'] ?? 'Caixa grande, frágil.',
-                  ),
-
-                  const Spacer(),
-
-                  // Botões de ação (apenas quando status = "Aguardando retirada")
-                  if (order['status'] == 'Aguardando retirada')
-                    Column(
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Botão Capturar Assinatura
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              _showSignatureDialog(context);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2196F3),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  width: 24,
-                                  height: 24,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.check,
-                                    color: Color(0xFF2196F3),
-                                    size: 16,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Capturar Assinatura',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
+                        const Text(
+                          'Foto da Encomenda',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2C3E50),
                           ),
                         ),
-
                         const SizedBox(height: 12),
-
-                        // Botão Excluir Encomenda
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              _showDeleteDialog(context);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFE53E3E),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.delete,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                                SizedBox(width: 12),
-                                Text(
-                                  'Excluir Encomenda',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                        GestureDetector(
+                          onTap: () {
+                            _showFullScreenImage(context, order['photoUrl']!);
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              order['photoUrl']!,
+                              width: double.infinity,
+                              height: 200,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  height: 200,
+                                  color: const Color(0xFFF5F5F5),
+                                  child: const Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.error_outline,
+                                        color: Color(0xFF7F8C8D),
+                                        size: 48,
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'Erro ao carregar imagem',
+                                        style: TextStyle(
+                                          color: Color(0xFF7F8C8D),
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
+                                );
+                              },
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Container(
+                                  height: 200,
+                                  color: const Color(0xFFF5F5F5),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ),
                       ],
                     ),
-
+                  ),
                   const SizedBox(height: 20),
                 ],
               ),
+
+            // Cartões de informações
+            Column(
+              children: [
+                // Destinatário
+                _buildInfoCard(
+                  title: 'Destinatário',
+                  value: order['recipient'] ?? 'Ana Silva',
+                ),
+
+                const SizedBox(height: 12),
+
+                // Bloco e Apartamento (lado a lado)
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildInfoCard(
+                        title: 'Bloco',
+                        value: order['block'] ?? 'A',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildInfoCard(
+                        title: 'Apartamento',
+                        value: order['apartment'] ?? '101',
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Recebido por
+                _buildInfoCard(
+                  title: 'Recebido por',
+                  value: order['receivedBy'] ?? 'João - Porteiro',
+                ),
+
+                const SizedBox(height: 12),
+
+                // Data de Recebimento
+                _buildInfoCard(
+                  title: 'Data de Recebimento',
+                  value:
+                      order['receivedDate'] ?? '15 de Julho de 2024, 10:30',
+                ),
+
+                const SizedBox(height: 12),
+
+                // Observações
+                _buildInfoCard(
+                  title: 'Observações',
+                  value: order['observations'] ?? 'Caixa grande, frágil.',
+                ),
+
+                const SizedBox(height: 30),
+
+                // Botões de ação (apenas quando status = "Aguardando retirada")
+                if (order['status'] == 'Aguardando retirada')
+                  Column(
+                    children: [
+                      // Botão Capturar Assinatura
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _showSignatureDialog(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2196F3),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 24,
+                                height: 24,
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.check,
+                                  color: Color(0xFF2196F3),
+                                  size: 16,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Capturar Assinatura',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Botão Excluir Encomenda
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _showDeleteDialog(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFE53E3E),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.delete,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              SizedBox(width: 12),
+                              Text(
+                                'Excluir Encomenda',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                const SizedBox(height: 20),
+              ],
             ),
           ],
         ),
@@ -351,5 +435,84 @@ class OrderDetailsScreen extends StatelessWidget {
         Navigator.of(context).pop();
       }
     });
+  }
+
+  void _showFullScreenImage(BuildContext context, String imageUrl) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            elevation: 0,
+            leading: IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(
+                Icons.arrow_back_ios,
+                color: Colors.white,
+              ),
+            ),
+            actions: [
+              IconButton(
+                onPressed: () {
+                  // Copiar URL da imagem (opcional)
+                  Clipboard.setData(ClipboardData(text: imageUrl));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('URL copiada para a área de transferência'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                icon: const Icon(
+                  Icons.copy,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          color: Colors.white,
+                          size: 64,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Erro ao carregar imagem',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

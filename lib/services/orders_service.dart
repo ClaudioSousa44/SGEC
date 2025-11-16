@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:io';
 
 import '../models/order.dart';
 import '../services/api_service.dart';
@@ -175,6 +176,44 @@ class OrdersService {
       return Order.fromJson(newOrderData);
     } catch (e) {
       throw ApiException('Erro ao criar encomenda: ${e.toString()}');
+    }
+  }
+
+  /// Cria uma nova encomenda com foto
+  static Future<Order> createOrderWithPhoto(
+    Map<String, dynamic> orderData,
+    File photoFile,
+  ) async {
+    try {
+      final token = await StorageService.getToken();
+
+      // Converter campos para String (necessário para multipart)
+      final fields = <String, String>{};
+      orderData.forEach((key, value) {
+        if (value != null) {
+          fields[key] = value.toString();
+        }
+      });
+
+      final response = await ApiService.postMultipart(
+        'encomendas',
+        fields,
+        token: token,
+        fileFieldName: 'foto',
+        file: photoFile,
+      );
+
+      // Verificar se os dados estão em 'data'
+      Map<String, dynamic> newOrderData;
+      if (response.containsKey('data') && response['data'] is Map) {
+        newOrderData = response['data'] as Map<String, dynamic>;
+      } else {
+        newOrderData = response;
+      }
+
+      return Order.fromJson(newOrderData);
+    } catch (e) {
+      throw ApiException('Erro ao criar encomenda com foto: ${e.toString()}');
     }
   }
 }

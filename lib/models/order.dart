@@ -12,6 +12,7 @@ class Order {
   final String? observations;
   final String? transportCompany;
   final String? trackingCode;
+  final String? photoUrl;
 
   Order({
     required this.id,
@@ -26,6 +27,7 @@ class Order {
     this.observations,
     this.transportCompany,
     this.trackingCode,
+    this.photoUrl,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -69,6 +71,10 @@ class Order {
       trackingCode: json['codigo_rastreamento'] as String? ??
           json['trackingCode'] as String? ??
           json['codigo'] as String?,
+      photoUrl: json['foto'] as String? ??
+          json['photo'] as String? ??
+          json['photo_url'] as String? ??
+          json['foto_url'] as String?,
     );
   }
 
@@ -86,21 +92,43 @@ class Order {
       'observacoes': observations,
       'transportadora': transportCompany,
       'codigo_rastreamento': trackingCode,
+      'foto_url': photoUrl,
     };
   }
 
   // Método auxiliar para parse de datas em formato brasileiro
   static DateTime _parseDate(String dateStr) {
     try {
-      // Tentar formato DD/MM/YYYY
+      // Tentar formato DD/MM/YYYY HH:mm:ss ou DD/MM/YYYY
       if (dateStr.contains('/')) {
-        final parts = dateStr.split('/');
-        if (parts.length == 3) {
-          return DateTime(
-            int.parse(parts[2]),
-            int.parse(parts[1]),
-            int.parse(parts[0]),
-          );
+        // Separar data e hora se existir
+        final dateTimeParts = dateStr.split(' ');
+        final datePart = dateTimeParts[0]; // "DD/MM/YYYY"
+        final timePart = dateTimeParts.length > 1 ? dateTimeParts[1] : null; // "HH:mm:ss"
+        
+        final dateParts = datePart.split('/');
+        if (dateParts.length == 3) {
+          final day = int.parse(dateParts[0]);
+          final month = int.parse(dateParts[1]);
+          final year = int.parse(dateParts[2]);
+          
+          if (timePart != null) {
+            // Parse da hora HH:mm:ss
+            final timeParts = timePart.split(':');
+            if (timeParts.length >= 3) {
+              final hour = int.parse(timeParts[0]);
+              final minute = int.parse(timeParts[1]);
+              final second = int.parse(timeParts[2]);
+              return DateTime(year, month, day, hour, minute, second);
+            } else if (timeParts.length == 2) {
+              final hour = int.parse(timeParts[0]);
+              final minute = int.parse(timeParts[1]);
+              return DateTime(year, month, day, hour, minute);
+            }
+          }
+          
+          // Apenas data, sem hora
+          return DateTime(year, month, day);
         }
       }
       // Tentar parse ISO
