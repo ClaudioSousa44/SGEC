@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
 
 import '../utils/api_config.dart';
 
@@ -149,23 +150,46 @@ class ApiService {
       request.fields.addAll(fields);
 
       // Adicionar arquivo se fornecido
+      int? fileSize;
+      String? fileName;
       if (file != null && fileFieldName != null) {
+        fileSize = await file.length();
+        fileName = path
+            .basename(file.path); // Usa path.basename para funcionar no Windows
+
         final fileStream = http.ByteStream(file.openRead());
-        final fileLength = await file.length();
         final multipartFile = http.MultipartFile(
           fileFieldName,
           fileStream,
-          fileLength,
-          filename: file.path.split('/').last,
+          fileSize,
+          filename: fileName,
         );
         request.files.add(multipartFile);
+      }
+
+      // Logs detalhados para debug
+      print('📤 Enviando requisição multipart...');
+      print('🔗 URL: ${uri.toString()}');
+      print('📋 Headers: ${request.headers}');
+      print('📝 Campos: ${fields.toString()}');
+      if (file != null && fileFieldName != null) {
+        print('📁 Campo do arquivo: $fileFieldName');
+        print('📄 Nome do arquivo: $fileName');
+        print('📦 Tamanho do arquivo: $fileSize bytes');
       }
 
       final streamedResponse = await request.send().timeout(timeoutDuration);
       final response = await http.Response.fromStream(streamedResponse);
 
+      // Logs da resposta
+      print('📥 Status Code: ${response.statusCode}');
+      print('📥 Response Headers: ${response.headers}');
+      print('📥 Response Body: ${response.body}');
+
       return _handleResponse(response);
     } catch (e) {
+      print('❌ Erro no upload de arquivo: $e');
+      print('❌ Stack trace: ${StackTrace.current}');
       throw ApiException('Erro no upload de arquivo: ${e.toString()}');
     }
   }
@@ -194,18 +218,32 @@ class ApiService {
         }
       } else {
         // Tratamento melhorado para erros
-        String errorMessage = 'Erro desconhecido';
+        String errorMessage = 'Erro desconhecido (Status: $statusCode)';
 
         if (jsonResponse is Map<String, dynamic>) {
+          // Tentar extrair mensagem de erro de diferentes formatos
           errorMessage = jsonResponse['message'] as String? ??
               jsonResponse['error'] as String? ??
-              jsonResponse['errors']?.toString() ??
+              jsonResponse['detail'] as String? ??
+              jsonResponse['msg'] as String? ??
+              (jsonResponse['errors'] != null
+                  ? jsonResponse['errors'].toString()
+                  : null) ??
               body;
         } else {
-          errorMessage = body;
+          errorMessage = body.isNotEmpty
+              ? body
+              : 'Erro desconhecido (Status: $statusCode)';
         }
 
-        throw ApiException(errorMessage, statusCode: statusCode);
+        // Log detalhado do erro
+        print('❌ Erro da API:');
+        print('   Status: $statusCode');
+        print('   Mensagem: $errorMessage');
+        print('   Body completo: $body');
+
+        throw ApiException('$errorMessage (Status: $statusCode)',
+            statusCode: statusCode);
       }
     } catch (e) {
       if (e is ApiException) {

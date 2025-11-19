@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'dart:io';
+import '../services/scan_service.dart';
 import 'scan_result_screen.dart';
 
 class CameraScreen extends StatefulWidget {
@@ -69,17 +71,45 @@ class _CameraScreenState extends State<CameraScreen> {
 
     try {
       final XFile photo = await _cameraController!.takePicture();
-
-      // Simular processamento da foto
-      await Future.delayed(const Duration(seconds: 1));
+      final imageFile = File(photo.path);
 
       if (mounted) {
-        // Mostrar resultado do escaneamento
-        _showScanResult(photo.path);
+        // Mostrar loading
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+      }
+
+      // Enviar foto para API de escaneamento
+      final scannedData = await ScanService.scanPhoto(imageFile);
+
+      if (mounted) {
+        Navigator.of(context).pop(); // Fechar loading
+
+        // Extrair informações de debug se existirem
+        Map<String, dynamic>? debugInfo;
+        Map<String, dynamic>? cleanData = scannedData;
+
+        if (scannedData.containsKey('_debug')) {
+          debugInfo = scannedData['_debug'] as Map<String, dynamic>;
+          // Remover debug dos dados principais
+          cleanData = Map<String, dynamic>.from(scannedData);
+          cleanData.remove('_debug');
+        }
+
+        // Processar resposta da API
+        _processScanResult(cleanData, imageFile.path, debugInfo);
       }
     } catch (e) {
-      print('Erro ao capturar foto: $e');
-      _showErrorDialog('Erro ao capturar foto');
+      if (mounted) {
+        Navigator.of(context).pop(); // Fechar loading se estiver aberto
+        print('❌ Erro ao escanear foto: $e');
+        _showErrorDialog('Erro ao escanear foto: ${e.toString()}');
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -89,37 +119,127 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
-  void _showScanResult(String imagePath) {
-    // Simular dados escaneados da etiqueta
-    // Em um app real, aqui você processaria a imagem e extrairia os dados
-    final scannedData = _simulateScannedData();
-    
-    // Navegar para a tela de resultado
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => ScanResultScreen(
-          residentName: scannedData['residentName']!,
-          block: scannedData['block']!,
-          apartment: scannedData['apartment']!,
-        ),
-      ),
-    );
-  }
+  void _processScanResult(
+    Map<String, dynamic> scannedData,
+    String imagePath,
+    Map<String, dynamic>? debugInfo,
+  ) {
+    try {
+      // Log completo da resposta para debug
+      print('🔍 Processando resposta da API:');
+      print('📦 Dados recebidos: $scannedData');
+      print('📦 Status: ${scannedData['status']}');
 
-  Map<String, String> _simulateScannedData() {
-    // Simular diferentes dados baseados no timestamp
-    final now = DateTime.now();
-    final seed = now.millisecondsSinceEpoch % 3;
-    
-    final residents = ['Mariana Oliveira', 'João Silva', 'Ana Costa'];
-    final blocks = ['Bloco A', 'Bloco B', 'Bloco C'];
-    final apartments = ['Apto 101', 'Apto 204', 'Apto 305'];
-    
-    return {
-      'residentName': residents[seed],
-      'block': blocks[seed],
-      'apartment': apartments[seed],
-    };
+      // Estrutura da resposta da API (conforme analisado):
+      // {
+      //   "status": "success",
+      //   "data": {
+      //     "candidates": 2,
+      //     "names_with_units_info": {
+      //       "Nome do Morador": {"apartment": "101", "block": "A"}
+      //     },
+      //     "reason": "Motivo..."
+      //   }
+      // }
+
+      String residentName = 'Nenhum dado encontrado';
+      String block = 'Nenhum dado encontrado';
+      String apartment = 'Nenhum dado encontrado';
+      String? reason;
+
+      // Verificar se a resposta tem status de sucesso
+      if (scannedData['status'] == 'success' &&
+          scannedData.containsKey('data')) {
+        final data = scannedData['data'] as Map<String, dynamic>;
+
+        print('📊 Data recebida: $data');
+        print('📊 Candidates: ${data['candidates']}');
+        print('📊 Reason: ${data['reason']}');
+
+        // Extrair reason se existir
+        reason = data['reason'] as String?;
+
+        // Extrair names_with_units_info
+        if (data.containsKey('names_with_units_info')) {
+          final namesWithUnits =
+              data['names_with_units_info'] as Map<String, dynamic>;
+
+          print('📊 names_with_units_info: $namesWithUnits');
+          print('📊 Quantidade de nomes: ${namesWithUnits.length}');
+
+          if (namesWithUnits.isNotEmpty) {
+            // Pegar o primeiro nome encontrado
+            final firstEntry = namesWithUnits.entries.first;
+            residentName = firstEntry.key;
+            print('✅ Nome encontrado: $residentName');
+
+            final unitInfo = firstEntry.value as Map<String, dynamic>;
+            print('📊 Unit info: $unitInfo');
+
+            final aptValue = unitInfo['apartment'] as String?;
+            final blockValue = unitInfo['block'] as String?;
+
+            // Formatar apartamento
+            if (aptValue != null && aptValue.isNotEmpty) {
+              apartment = 'Apto $aptValue';
+              print('✅ Apartamento: $apartment');
+            } else {
+              apartment = 'Apto não informado';
+              print('⚠️ Apartamento não encontrado');
+            }
+
+            // Formatar bloco
+            if (blockValue != null && blockValue.isNotEmpty) {
+              block = 'Bloco $blockValue';
+              print('✅ Bloco: $block');
+            } else {
+              block = 'Bloco não informado';
+              print('⚠️ Bloco não encontrado');
+            }
+          } else {
+            print('⚠️ names_with_units_info está vazio');
+            residentName = 'Nenhum nome encontrado na etiqueta';
+            if (reason != null) {
+              residentName += '\n($reason)';
+            }
+          }
+        } else {
+          print('⚠️ Campo names_with_units_info não encontrado na resposta');
+          if (reason != null) {
+            residentName = 'Nenhum dado encontrado\n($reason)';
+          }
+        }
+      } else if (scannedData['status'] == 'error') {
+        // Tratar erro da API
+        final errorData = scannedData['data'] as Map<String, dynamic>?;
+        final errorMessage =
+            errorData?['message'] as String? ?? 'Erro desconhecido';
+        print('❌ Erro da API: $errorMessage');
+        _showErrorDialog('Erro na API: $errorMessage');
+        return;
+      } else {
+        print('⚠️ Status desconhecido ou estrutura inesperada');
+        print('📦 Resposta completa: $scannedData');
+      }
+
+      // Navegar para a tela de resultado com dados completos
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => ScanResultScreen(
+            residentName: residentName,
+            block: block,
+            apartment: apartment,
+            imagePath: imagePath,
+            rawApiResponse: scannedData, // Passar resposta completa da API
+            debugInfo: debugInfo, // Passar informações de debug
+            reason: reason, // Passar motivo da resposta
+          ),
+        ),
+      );
+    } catch (e) {
+      print('❌ Erro ao processar resultado: $e');
+      _showErrorDialog('Erro ao processar dados escaneados: ${e.toString()}');
+    }
   }
 
   void _showPermissionDialog() {

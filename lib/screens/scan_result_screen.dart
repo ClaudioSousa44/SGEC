@@ -1,15 +1,26 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'debug_scan_screen.dart';
 
 class ScanResultScreen extends StatelessWidget {
   final String residentName;
   final String block;
   final String apartment;
+  final String? imagePath;
+  final Map<String, dynamic>? rawApiResponse;
+  final Map<String, dynamic>? debugInfo;
+  final String? reason;
 
   const ScanResultScreen({
     super.key,
     this.residentName = 'Mariana Oliveira',
     this.block = 'Bloco B',
     this.apartment = 'Apto 304',
+    this.imagePath,
+    this.rawApiResponse,
+    this.debugInfo,
+    this.reason,
   });
 
   @override
@@ -35,38 +46,96 @@ class ScanResultScreen extends StatelessWidget {
           ),
         ),
         centerTitle: true,
+        actions: [
+          if (debugInfo != null)
+            IconButton(
+              onPressed: () => _navigateToDebug(context),
+              icon: const Icon(
+                Icons.bug_report,
+                color: Color(0xFF2196F3),
+              ),
+              tooltip: 'Ver debug completo',
+            ),
+          if (rawApiResponse != null)
+            IconButton(
+              onPressed: () => _showApiResponseDialog(context),
+              icon: const Icon(
+                Icons.info_outline,
+                color: Color(0xFF2C3E50),
+              ),
+              tooltip: 'Ver resposta da API',
+            ),
+        ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            const SizedBox(height: 40),
-            
-            // Indicador de sucesso
+            const SizedBox(height: 20),
+
+            // Imagem enviada
+            if (imagePath != null) ...[
+              Container(
+                width: double.infinity,
+                height: 200,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFFE0E0E0),
+                    width: 1,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    File(imagePath!),
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+
+            // Indicador de sucesso ou aviso
             Container(
               width: 80,
               height: 80,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFE3F2FD),
+                color: (residentName.contains('Nenhum') ||
+                        residentName.contains('não encontrado'))
+                    ? Colors.orange.shade50
+                    : const Color(0xFFE3F2FD),
                 border: Border.all(
-                  color: const Color(0xFF2196F3),
+                  color: (residentName.contains('Nenhum') ||
+                          residentName.contains('não encontrado'))
+                      ? Colors.orange
+                      : const Color(0xFF2196F3),
                   width: 3,
                 ),
               ),
-              child: const Icon(
-                Icons.check,
-                color: Color(0xFF2196F3),
+              child: Icon(
+                (residentName.contains('Nenhum') ||
+                        residentName.contains('não encontrado'))
+                    ? Icons.warning
+                    : Icons.check,
+                color: (residentName.contains('Nenhum') ||
+                        residentName.contains('não encontrado'))
+                    ? Colors.orange
+                    : const Color(0xFF2196F3),
                 size: 40,
               ),
             ),
 
             const SizedBox(height: 24),
 
-            // Mensagem de sucesso
-            const Text(
-              'Etiqueta Lida com Sucesso!',
-              style: TextStyle(
+            // Mensagem de sucesso ou aviso
+            Text(
+              residentName.contains('Nenhum') ||
+                      residentName.contains('não encontrado')
+                  ? 'Etiqueta Processada'
+                  : 'Etiqueta Lida com Sucesso!',
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF2C3E50),
@@ -75,11 +144,20 @@ class ScanResultScreen extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            const Text(
-              'Confira os dados da encomenda abaixo.',
+            Text(
+              reason != null
+                  ? reason!
+                  : (residentName.contains('Nenhum') ||
+                          residentName.contains('não encontrado')
+                      ? 'Nenhum dado foi encontrado na etiqueta.'
+                      : 'Confira os dados da encomenda abaixo.'),
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
-                color: Color(0xFF7F8C8D),
+                color: (residentName.contains('Nenhum') ||
+                        residentName.contains('não encontrado'))
+                    ? Colors.orange.shade700
+                    : const Color(0xFF7F8C8D),
               ),
             ),
 
@@ -108,24 +186,24 @@ class ScanResultScreen extends StatelessWidget {
                     label: 'Morador',
                     value: residentName,
                   ),
-                  
+
                   const Divider(
                     color: Color(0xFFE0E0E0),
                     height: 32,
                   ),
-                  
+
                   // Seção Bloco
                   _buildInfoRow(
                     icon: Icons.business,
                     label: 'Bloco',
                     value: block,
                   ),
-                  
+
                   const Divider(
                     color: Color(0xFFE0E0E0),
                     height: 32,
                   ),
-                  
+
                   // Seção Apartamento
                   _buildInfoRow(
                     icon: Icons.door_front_door,
@@ -136,92 +214,92 @@ class ScanResultScreen extends StatelessWidget {
               ),
             ),
 
-            const Spacer(),
-
-            // Botões de ação
-            Column(
-              children: [
-                // Botão Confirmar Entrega
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      _showConfirmationDialog(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2196F3),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+            // Botões de ação (apenas se houver dados válidos)
+            if (!residentName.contains('Nenhum') &&
+                !residentName.contains('não encontrado'))
+              Column(
+                children: [
+                  // Botão Confirmar Entrega
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        _showConfirmationDialog(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2196F3),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
                       ),
-                      elevation: 0,
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Confirmar Entrega',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.check,
+                            color: Colors.white,
+                            size: 20,
                           ),
-                        ),
-                      ],
+                          SizedBox(width: 8),
+                          Text(
+                            'Confirmar Entrega',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // Botão Editar Dados
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      _showEditDialog(context);
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF2C3E50),
-                      side: const BorderSide(
-                        color: Color(0xFFE0E0E0),
-                        width: 1,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.edit,
-                          color: Color(0xFF2C3E50),
-                          size: 20,
+                  // Botão Editar Dados
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        _showEditDialog(context);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF2C3E50),
+                        side: const BorderSide(
+                          color: Color(0xFFE0E0E0),
+                          width: 1,
                         ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Editar Dados',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.edit,
+                            color: Color(0xFF2C3E50),
+                            size: 20,
                           ),
-                        ),
-                      ],
+                          SizedBox(width: 8),
+                          Text(
+                            'Editar Dados',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -328,12 +406,105 @@ class ScanResultScreen extends StatelessWidget {
         duration: Duration(seconds: 3),
       ),
     );
-    
+
     // Voltar para a tela principal após 2 segundos
     Future.delayed(const Duration(seconds: 2), () {
       if (context.mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     });
+  }
+
+  void _navigateToDebug(BuildContext context) {
+    if (debugInfo == null) return;
+
+    final requestInfo = debugInfo!['request'] as Map<String, dynamic>?;
+    final responseInfo = debugInfo!['response'] as Map<String, dynamic>?;
+    final imagePath = debugInfo!['imagePath'] as String?;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DebugScanScreen(
+          requestInfo: requestInfo,
+          responseData: responseInfo,
+          imageFile: imagePath != null ? File(imagePath) : null,
+        ),
+      ),
+    );
+  }
+
+  void _showApiResponseDialog(BuildContext context) {
+    if (rawApiResponse == null) return;
+
+    // Formatar JSON de forma legível
+    final jsonString =
+        const JsonEncoder.withIndent('  ').convert(rawApiResponse);
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Resposta Completa da API',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2C3E50),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F5F5),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFE0E0E0)),
+                  ),
+                  child: SingleChildScrollView(
+                    child: SelectableText(
+                      jsonString,
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        color: Color(0xFF2C3E50),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      // Copiar para clipboard (opcional)
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('Fechar'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
