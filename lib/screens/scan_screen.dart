@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'camera_screen.dart';
 import 'manual_register_screen.dart';
+import '../services/storage_service.dart';
+import '../models/login_response.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -10,6 +12,22 @@ class ScanScreen extends StatefulWidget {
 }
 
 class _ScanScreenState extends State<ScanScreen> {
+  User? _user;
+  bool _isLoadingUser = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final user = await StorageService.getUser();
+    setState(() {
+      _user = user;
+      _isLoadingUser = false;
+    });
+  }
   void _onScanPressed() {
     // Navegar para a tela de câmera
     Navigator.of(context).push(
@@ -43,22 +61,6 @@ class _ScanScreenState extends State<ScanScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              // Implementar configurações
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Configurações em breve!'),
-                ),
-              );
-            },
-            icon: const Icon(
-              Icons.settings,
-              color: Color(0xFF2C3E50),
-            ),
-          ),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -66,9 +68,11 @@ class _ScanScreenState extends State<ScanScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Saudação
-            const Text(
-              'Bem-vindo, Sr. Silva',
-              style: TextStyle(
+            Text(
+              _isLoadingUser
+                  ? 'Bem-vindo'
+                  : 'Bem-vindo, ${_user?.name ?? 'Porteiro'}',
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF2C3E50),
@@ -159,26 +163,6 @@ class _ScanScreenState extends State<ScanScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Área de dados escaneados
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F9FA),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: const Color(0xFFE0E0E0),
-                  width: 1,
-                ),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [],
               ),
             ),
           ],

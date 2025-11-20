@@ -27,6 +27,7 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
   String? _selectedBlock;
   Unit? _selectedUnit;
   String? _photoPath;
+  bool _showPhotoError = false;
 
   bool _isLoadingResidents = true;
   bool _isLoadingUnits = true;
@@ -134,6 +135,7 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
     if (photoPath != null && mounted) {
       setState(() {
         _photoPath = photoPath;
+        _showPhotoError = false; // Remover erro quando foto for tirada
       });
     }
   }
@@ -524,9 +526,11 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
                     color: const Color(0xFFF8F9FA),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: _photoPath == null
-                          ? const Color(0xFFFF5722)
-                          : const Color(0xFF4CAF50),
+                      color: _photoPath != null
+                          ? const Color(0xFF4CAF50)
+                          : _showPhotoError
+                              ? const Color(0xFFFF5722)
+                              : const Color(0xFFE0E0E0),
                       width: 2,
                     ),
                   ),
@@ -567,7 +571,7 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
                         ),
                 ),
               ),
-              if (_photoPath == null)
+              if (_photoPath == null && _showPhotoError)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Row(
@@ -586,8 +590,8 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
                         ),
                       ),
                     ],
+                  ),
                 ),
-              ),
 
               const SizedBox(height: 30),
 
@@ -626,6 +630,9 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
   Future<void> _saveOrder() async {
     // Validar foto obrigatória
     if (_photoPath == null) {
+      setState(() {
+        _showPhotoError = true;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Por favor, tire uma foto da encomenda'),

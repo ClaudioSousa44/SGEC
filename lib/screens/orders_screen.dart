@@ -216,35 +216,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              // Focar na barra de pesquisa
-              _searchController.clear();
-              setState(() {
-                _searchQuery = '';
-              });
-            },
-            icon: const Icon(
-              Icons.search,
-              color: Color(0xFF2C3E50),
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              // Implementar configurações
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Configurações em breve!'),
-                ),
-              );
-            },
-            icon: const Icon(
-              Icons.settings,
-              color: Color(0xFF2C3E50),
-            ),
-          ),
-        ],
       ),
       body: Column(
         children: [
