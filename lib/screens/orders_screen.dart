@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/order.dart';
 import '../services/orders_service.dart';
+import '../services/residents_service.dart';
 import 'order_details_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
@@ -13,9 +14,13 @@ class OrdersScreen extends StatefulWidget {
 class _OrdersScreenState extends State<OrdersScreen> {
   String _searchQuery = '';
   String _selectedFilter = 'Todas';
+  String? _selectedBlock;
+  String? _selectedApartment;
   final TextEditingController _searchController = TextEditingController();
 
   List<Order> _orders = [];
+  List<String> _availableBlocks = [];
+  List<String> _availableApartments = [];
   bool _isLoading = true;
   String? _errorMessage;
   final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
@@ -25,6 +30,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   void initState() {
     super.initState();
     _loadOrders();
+    _loadFilters();
   }
 
   @override
@@ -62,6 +68,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
         _orders = orders;
         _isLoading = false;
       });
+
+      // Atualizar apartamentos após carregar encomendas
+      _updateApartments();
     } catch (e) {
       if (!mounted) return;
 
@@ -74,6 +83,73 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   Future<void> _refreshOrders() async {
     await _loadOrders();
+  }
+
+  Future<void> _loadFilters() async {
+    try {
+      // Buscar unidades para obter lista de blocos e apartamentos
+      final units = await ResidentsService.getUnits();
+      
+      // Extrair blocos únicos
+      final blocks = units.map((u) => u.block).toSet().toList();
+      blocks.sort();
+
+      setState(() {
+        _availableBlocks = blocks;
+      });
+
+      // Atualizar apartamentos baseado no bloco selecionado
+      _updateApartments();
+    } catch (e) {
+      // Erro silencioso - os filtros podem ser preenchidos das encomendas
+    }
+  }
+
+  void _updateApartments() {
+    if (_selectedBlock == null) {
+      setState(() {
+        _availableApartments = [];
+        _selectedApartment = null;
+      });
+      return;
+    }
+
+    try {
+      // Buscar apartamentos do bloco selecionado das encomendas
+      final apartments = _orders
+          .where((order) => order.block == _selectedBlock)
+          .map((order) => order.apartment)
+          .toSet()
+          .toList();
+      apartments.sort();
+
+      setState(() {
+        _availableApartments = apartments;
+        // Se o apartamento selecionado não está mais na lista, limpar
+        if (_selectedApartment != null &&
+            !_availableApartments.contains(_selectedApartment)) {
+          _selectedApartment = null;
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _availableApartments = [];
+      });
+    }
+  }
+
+  void _onBlockChanged(String? block) {
+    setState(() {
+      _selectedBlock = block;
+      _selectedApartment = null; // Resetar apartamento ao mudar bloco
+    });
+    _updateApartments();
+  }
+
+  void _onApartmentChanged(String? apartment) {
+    setState(() {
+      _selectedApartment = apartment;
+    });
   }
 
   List<Order> get _filteredOrders {
@@ -102,6 +178,20 @@ class _OrdersScreenState extends State<OrdersScreen> {
       filtered = filtered
           .where((order) =>
               order.status.toLowerCase() == statusToFilter.toLowerCase())
+          .toList();
+    }
+
+    // Filtrar por bloco
+    if (_selectedBlock != null && _selectedBlock!.isNotEmpty) {
+      filtered = filtered
+          .where((order) => order.block == _selectedBlock)
+          .toList();
+    }
+
+    // Filtrar por apartamento
+    if (_selectedApartment != null && _selectedApartment!.isNotEmpty) {
+      filtered = filtered
+          .where((order) => order.apartment == _selectedApartment)
           .toList();
     }
 
@@ -200,7 +290,27 @@ class _OrdersScreenState extends State<OrdersScreen> {
             ),
           ),
 
-          // Filtros
+          // Filtros de Bloco e Apartamento
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              children: [
+                // Filtro de Bloco
+                Expanded(
+                  child: _buildBlockFilter(),
+                ),
+                const SizedBox(width: 12),
+                // Filtro de Apartamento
+                Expanded(
+                  child: _buildApartmentFilter(),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Filtros de Status
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: SingleChildScrollView(
@@ -251,6 +361,128 @@ class _OrdersScreenState extends State<OrdersScreen> {
             fontWeight: FontWeight.w500,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBlockFilter() {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+      ),
+      child: DropdownButtonFormField<String>(
+        value: _selectedBlock,
+        decoration: InputDecoration(
+          hintText: 'Todos os blocos',
+          hintStyle: const TextStyle(
+            color: Color(0xFF7F8C8D),
+            fontSize: 14,
+          ),
+          filled: true,
+          fillColor: const Color(0xFFF8F9FA),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(
+              color: Color(0xFFE0E0E0),
+              width: 1,
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(
+              color: Color(0xFFE0E0E0),
+              width: 1,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(
+              color: Color(0xFF2196F3),
+              width: 2,
+            ),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
+        ),
+        items: [
+          const DropdownMenuItem<String>(
+            value: null,
+            child: Text('Todos os blocos'),
+          ),
+          ..._availableBlocks.map((block) {
+            return DropdownMenuItem<String>(
+              value: block,
+              child: Text(block),
+            );
+          }),
+        ],
+        onChanged: _onBlockChanged,
+      ),
+    );
+  }
+
+  Widget _buildApartmentFilter() {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+      ),
+      child: DropdownButtonFormField<String>(
+        value: _selectedApartment,
+        decoration: InputDecoration(
+          hintText: _selectedBlock == null
+              ? 'Selecione um bloco'
+              : 'Todos os apartamentos',
+          hintStyle: const TextStyle(
+            color: Color(0xFF7F8C8D),
+            fontSize: 14,
+          ),
+          filled: true,
+          fillColor: const Color(0xFFF8F9FA),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(
+              color: Color(0xFFE0E0E0),
+              width: 1,
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(
+              color: Color(0xFFE0E0E0),
+              width: 1,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(
+              color: Color(0xFF2196F3),
+              width: 2,
+            ),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
+        ),
+        items: [
+          const DropdownMenuItem<String>(
+            value: null,
+            child: Text('Todos os apartamentos'),
+          ),
+          ..._availableApartments.map((apartment) {
+            return DropdownMenuItem<String>(
+              value: apartment,
+              child: Text(apartment),
+            );
+          }),
+        ],
+        onChanged: _selectedBlock != null ? _onApartmentChanged : null,
       ),
     );
   }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'signature_screen.dart';
-import '../widgets/delete_request_modal.dart';
 
 class OrderDetailsScreen extends StatelessWidget {
   final Map<String, dynamic> order;
@@ -309,44 +308,6 @@ class OrderDetailsScreen extends StatelessWidget {
                         ),
                       ),
 
-                      const SizedBox(height: 12),
-
-                      // Botão Excluir Encomenda
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            _showDeleteDialog(context);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFE53E3E),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.delete,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                              SizedBox(width: 12),
-                              Text(
-                                'Excluir Encomenda',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
                     ],
                   ),
 
@@ -407,35 +368,6 @@ class OrderDetailsScreen extends StatelessWidget {
     );
   }
 
-  void _showDeleteDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => DeleteRequestModal(
-        orderNumber: order['orderNumber'] ?? 'BR12345',
-        onConfirm: (reason) {
-          Navigator.of(context).pop();
-          _showDeleteSuccessMessage(context);
-        },
-      ),
-    );
-  }
-
-  void _showDeleteSuccessMessage(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Solicitação de exclusão enviada com sucesso!'),
-        backgroundColor: Color(0xFF4CAF50),
-        duration: Duration(seconds: 3),
-      ),
-    );
-
-    // Voltar para a tela anterior após 1 segundo
-    Future.delayed(const Duration(seconds: 1), () {
-      if (context.mounted) {
-        Navigator.of(context).pop();
-      }
-    });
-  }
 
   void _showFullScreenImage(BuildContext context, String imageUrl) {
     Navigator.of(context).push(
