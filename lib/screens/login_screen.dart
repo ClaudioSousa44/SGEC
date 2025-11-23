@@ -58,9 +58,26 @@ class _LoginScreenState extends State<LoginScreen> {
         // Considera sucesso se tiver success=true E dados do usuário
         if (response.success && response.user != null) {
           // Salvar token e dados do usuário
+          print('💾 Salvando dados do usuário...');
           await StorageService.saveUser(response.user!);
-          if (response.token != null) {
+          
+          if (response.token != null && response.token!.isNotEmpty) {
+            print('💾 Salvando token da API: ${response.token!.substring(0, response.token!.length > 20 ? 20 : response.token!.length)}...');
             await StorageService.saveToken(response.token);
+          } else {
+            print('⚠️ AVISO: Token não foi retornado pela API!');
+            print('   Response token: ${response.token}');
+            print('   Gerando token local baseado no ID do usuário...');
+            // Salvar token local baseado no ID do usuário (temporário)
+            await StorageService.saveToken(null, userId: response.user!.id);
+          }
+          
+          // Verificar se foi salvo corretamente
+          final savedToken = await StorageService.getToken();
+          if (savedToken != null && savedToken.isNotEmpty) {
+            print('✅ Token salvo com sucesso! (${savedToken.length} caracteres)');
+          } else {
+            print('❌ ERRO: Token não foi salvo corretamente!');
           }
 
           // Navegar para a tela principal

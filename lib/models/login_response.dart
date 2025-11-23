@@ -12,10 +12,18 @@ class LoginResponse {
   });
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
+    // Log detalhado da resposta
+    print('🔍 LoginResponse.fromJson - Analisando resposta:');
+    print('   JSON completo: $json');
+    print('   Chaves disponíveis: ${json.keys.toList()}');
+    
     // Verificar se os dados estão dentro de um campo 'data'
     Map<String, dynamic>? data;
     if (json.containsKey('data') && json['data'] is Map<String, dynamic>) {
       data = json['data'] as Map<String, dynamic>;
+      print('   ✅ Campo "data" encontrado: ${data.keys.toList()}');
+    } else {
+      print('   ⚠️ Campo "data" não encontrado ou não é Map');
     }
 
     // Verificar sucesso: pode vir como 'status' == "success" ou 'success' == true
@@ -24,9 +32,50 @@ class LoginResponse {
     final success = status == 'success' ||
         successBool == true ||
         (data != null && status != 'error');
+    
+    print('   Status: $status');
+    print('   Success bool: $successBool');
+    print('   Success calculado: $success');
 
-    // Buscar token (se existir)
-    final token = data?['token'] as String? ?? json['token'] as String?;
+    // Buscar token em múltiplos lugares possíveis
+    String? token;
+    
+    // Tentar 1: data.token
+    if (data != null && data.containsKey('token')) {
+      token = data['token'] as String?;
+      print('   ✅ Token encontrado em data.token: ${token != null ? "${token.substring(0, token.length > 20 ? 20 : token.length)}..." : "null"}');
+    }
+    
+    // Tentar 2: json.token
+    if (token == null && json.containsKey('token')) {
+      token = json['token'] as String?;
+      print('   ✅ Token encontrado em json.token: ${token != null ? "${token.substring(0, token.length > 20 ? 20 : token.length)}..." : "null"}');
+    }
+    
+    // Tentar 3: data.access_token
+    if (token == null && data != null && data.containsKey('access_token')) {
+      token = data['access_token'] as String?;
+      print('   ✅ Token encontrado em data.access_token: ${token != null ? "${token.substring(0, token.length > 20 ? 20 : token.length)}..." : "null"}');
+    }
+    
+    // Tentar 4: json.access_token
+    if (token == null && json.containsKey('access_token')) {
+      token = json['access_token'] as String?;
+      print('   ✅ Token encontrado em json.access_token: ${token != null ? "${token.substring(0, token.length > 20 ? 20 : token.length)}..." : "null"}');
+    }
+    
+    if (token == null) {
+      print('   ❌ Token NÃO encontrado em nenhum lugar!');
+      print('   Verificando todos os campos disponíveis...');
+      if (data != null) {
+        print('   Campos em data: ${data.keys.toList()}');
+        data.forEach((key, value) {
+          if (key.toLowerCase().contains('token') || key.toLowerCase().contains('auth')) {
+            print('     ⚠️ Campo suspeito "$key": $value');
+          }
+        });
+      }
+    }
 
     // Buscar dados do usuário
     User? user;

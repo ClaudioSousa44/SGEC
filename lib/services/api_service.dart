@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
@@ -167,24 +168,63 @@ class ApiService {
         request.files.add(multipartFile);
       }
 
-      // Logs detalhados para debug
-      print('📤 Enviando requisição multipart...');
+      // Logs detalhados para debug - PAYLOAD COMPLETO
+      print('═══════════════════════════════════════════════════════════');
+      print('📤 PAYLOAD COMPLETO - POST MULTIPART');
+      print('═══════════════════════════════════════════════════════════');
       print('🔗 URL: ${uri.toString()}');
-      print('📋 Headers: ${request.headers}');
-      print('📝 Campos: ${fields.toString()}');
+      print('📋 Headers:');
+      request.headers.forEach((key, value) {
+        print('   $key: ${key == 'Authorization' ? 'Bearer ***' : value}');
+      });
+      print('📝 Campos (Fields):');
+      fields.forEach((key, value) {
+        print('   $key: "$value"');
+      });
       if (file != null && fileFieldName != null) {
-        print('📁 Campo do arquivo: $fileFieldName');
-        print('📄 Nome do arquivo: $fileName');
-        print('📦 Tamanho do arquivo: $fileSize bytes');
+        print('📁 Arquivo:');
+        print('   Campo: $fileFieldName');
+        print('   Nome: $fileName');
+        print('   Tamanho: $fileSize bytes');
+        print('   Caminho: ${file.path}');
       }
+      print('═══════════════════════════════════════════════════════════');
+      
+      print('⏳ Aguardando resposta do servidor...');
+      print('   Timeout configurado: ${timeoutDuration.inSeconds} segundos');
 
-      final streamedResponse = await request.send().timeout(timeoutDuration);
+      final streamedResponse = await request.send().timeout(
+        timeoutDuration,
+        onTimeout: () {
+          print('⏰ TIMEOUT: Requisição demorou mais de ${timeoutDuration.inSeconds} segundos');
+          throw TimeoutException(
+            'A requisição demorou muito para responder. Verifique sua conexão.',
+            timeoutDuration,
+          );
+        },
+      );
+      
+      print('✅ Resposta recebida do servidor, processando...');
       final response = await http.Response.fromStream(streamedResponse);
 
       // Logs da resposta
-      print('📥 Status Code: ${response.statusCode}');
-      print('📥 Response Headers: ${response.headers}');
-      print('📥 Response Body: ${response.body}');
+      print('═══════════════════════════════════════════════════════════');
+      print('📥 RESPOSTA DO SERVIDOR');
+      print('═══════════════════════════════════════════════════════════');
+      print('📊 Status Code: ${response.statusCode}');
+      print('📋 Response Headers:');
+      response.headers.forEach((key, value) {
+        print('   $key: $value');
+      });
+      print('📄 Response Body:');
+      try {
+        // Tentar formatar JSON se possível
+        final jsonData = jsonDecode(response.body);
+        print(const JsonEncoder.withIndent('   ').convert(jsonData));
+      } catch (e) {
+        print('   ${response.body}');
+      }
+      print('═══════════════════════════════════════════════════════════');
 
       return _handleResponse(response);
     } catch (e) {

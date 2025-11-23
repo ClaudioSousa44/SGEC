@@ -36,6 +36,69 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    // Verificar se o usuário está autenticado
+    final token = await StorageService.getToken();
+    final user = await StorageService.getUser();
+    
+    print('🔐 Verificando autenticação...');
+    print('   Token: ${token != null ? "Presente (${token.length} caracteres)" : "Ausente"}');
+    print('   Usuário: ${user != null ? "Presente (${user.name})" : "Ausente"}');
+    
+    if (token == null || token.isEmpty) {
+      print('⚠️ Token não encontrado!');
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showAuthErrorDialog();
+        });
+      }
+    }
+  }
+
+  void _showAuthErrorDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(
+              Icons.warning,
+              color: Color(0xFFFF5722),
+              size: 28,
+            ),
+            SizedBox(width: 12),
+            Text(
+              'Sessão Expirada',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Você não está autenticado ou sua sessão expirou.\n\n'
+          'Por favor, faça login novamente para continuar.',
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Fechar diálogo
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2196F3),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Fazer Login'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -679,6 +742,62 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
       );
 
       try {
+        // Verificar token antes de criar encomenda
+        final token = await StorageService.getToken();
+        if (token == null || token.isEmpty) {
+          // Fechar loading
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
+          
+          // Mostrar erro e redirecionar para login
+          if (mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => AlertDialog(
+                title: const Row(
+                  children: [
+                    Icon(
+                      Icons.warning,
+                      color: Color(0xFFFF5722),
+                      size: 28,
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'Sessão Expirada',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                content: const Text(
+                  'Sua sessão expirou ou você não está logado.\n\n'
+                  'Por favor, faça login novamente para continuar.',
+                ),
+                actions: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Fechar diálogo
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2196F3),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Fazer Login'),
+                  ),
+                ],
+              ),
+            );
+          }
+          return;
+        }
+        
+        print('✅ Token encontrado: ${token.substring(0, 20)}...');
+        
         // Criar dados da encomenda
         final orderData = {
           'codigo_rastreio': _trackingCodeController.text.trim().isEmpty

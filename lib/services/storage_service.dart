@@ -28,19 +28,57 @@ class StorageService {
   }
 
   /// Salva o token de autenticação
-  static Future<void> saveToken(String? token) async {
+  /// Se o token não for fornecido, gera um token local baseado no ID do usuário
+  static Future<void> saveToken(String? token, {int? userId}) async {
+    print('💾 StorageService.saveToken - Iniciando...');
+    print('   Token recebido: ${token != null ? "${token.substring(0, token.length > 20 ? 20 : token.length)}... (${token.length} chars)" : "null"}');
+    print('   User ID: $userId');
+    
     final prefs = await SharedPreferences.getInstance();
-    if (token != null) {
-      await prefs.setString(_tokenKey, token);
+    
+    // Se não há token mas há userId, gerar um token local temporário
+    if ((token == null || token.isEmpty) && userId != null) {
+      print('   ⚠️ Token não fornecido, gerando token local baseado no ID do usuário...');
+      // Gerar um token simples baseado no ID (temporário até o backend implementar JWT)
+      final localToken = 'local_token_${userId}_${DateTime.now().millisecondsSinceEpoch}';
+      token = localToken;
+      print('   ✅ Token local gerado: ${token.substring(0, 20)}...');
+    }
+    
+    if (token != null && token.isNotEmpty) {
+      final saved = await prefs.setString(_tokenKey, token);
+      print('   Resultado do save: $saved');
+      
+      // Verificar imediatamente se foi salvo
+      final verification = prefs.getString(_tokenKey);
+      if (verification != null && verification == token) {
+        print('   ✅ Token verificado após salvar: OK');
+      } else {
+        print('   ❌ ERRO: Token não foi salvo corretamente!');
+        print('   Esperado: ${token.substring(0, token.length > 20 ? 20 : token.length)}...');
+        print('   Obtido: ${verification != null ? verification.substring(0, verification.length > 20 ? 20 : verification.length) : "null"}...');
+      }
     } else {
+      print('   ⚠️ Token é null ou vazio, removendo...');
       await prefs.remove(_tokenKey);
     }
   }
 
   /// Recupera o token de autenticação
   static Future<String?> getToken() async {
+    print('🔍 StorageService.getToken - Buscando token...');
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
+    final token = prefs.getString(_tokenKey);
+    
+    if (token != null && token.isNotEmpty) {
+      print('   ✅ Token encontrado: ${token.substring(0, token.length > 20 ? 20 : token.length)}... (${token.length} chars)');
+    } else {
+      print('   ❌ Token NÃO encontrado!');
+      print('   Chave usada: $_tokenKey');
+      print('   Todas as chaves disponíveis: ${prefs.getKeys()}');
+    }
+    
+    return token;
   }
 
   /// Limpa todos os dados (logout)

@@ -639,43 +639,45 @@ class _OrdersScreenState extends State<OrdersScreen> {
             ),
 
             // Status
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: isDelivered
-                    ? const Color(0xFFE8F5E8)
-                    : const Color(0xFFFFF3CD),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: isDelivered
-                          ? const Color(0xFF4CAF50)
-                          : const Color(0xFFFFC107),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      order.status,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isDelivered
+                      ? const Color(0xFFE8F5E8)
+                      : const Color(0xFFFFF3CD),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
                         color: isDelivered
-                            ? const Color(0xFF2E7D32)
-                            : const Color(0xFFF57C00),
+                            ? const Color(0xFF4CAF50)
+                            : const Color(0xFFFFC107),
+                        shape: BoxShape.circle,
                       ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        order.status,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: isDelivered
+                              ? const Color(0xFF2E7D32)
+                              : const Color(0xFFF57C00),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 
