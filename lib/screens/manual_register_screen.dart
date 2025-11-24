@@ -8,7 +8,12 @@ import '../services/storage_service.dart';
 import 'photo_capture_screen.dart';
 
 class ManualRegisterScreen extends StatefulWidget {
-  const ManualRegisterScreen({super.key});
+  final String? preloadedPhotoPath;
+
+  const ManualRegisterScreen({
+    super.key,
+    this.preloadedPhotoPath,
+  });
 
   @override
   State<ManualRegisterScreen> createState() => _ManualRegisterScreenState();
@@ -35,6 +40,10 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
   @override
   void initState() {
     super.initState();
+    // Se houver foto pré-carregada, usar ela
+    if (widget.preloadedPhotoPath != null) {
+      _photoPath = widget.preloadedPhotoPath;
+    }
     _loadData();
     _checkAuth();
   }
@@ -43,11 +52,13 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
     // Verificar se o usuário está autenticado
     final token = await StorageService.getToken();
     final user = await StorageService.getUser();
-    
+
     print('🔐 Verificando autenticação...');
-    print('   Token: ${token != null ? "Presente (${token.length} caracteres)" : "Ausente"}');
-    print('   Usuário: ${user != null ? "Presente (${user.name})" : "Ausente"}');
-    
+    print(
+        '   Token: ${token != null ? "Presente (${token.length} caracteres)" : "Ausente"}');
+    print(
+        '   Usuário: ${user != null ? "Presente (${user.name})" : "Ausente"}');
+
     if (token == null || token.isEmpty) {
       print('⚠️ Token não encontrado!');
       if (mounted) {
@@ -749,7 +760,7 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
           if (mounted) {
             Navigator.of(context).pop();
           }
-          
+
           // Mostrar erro e redirecionar para login
           if (mounted) {
             showDialog(
@@ -795,9 +806,9 @@ class _ManualRegisterScreenState extends State<ManualRegisterScreen> {
           }
           return;
         }
-        
+
         print('✅ Token encontrado: ${token.substring(0, 20)}...');
-        
+
         // Criar dados da encomenda
         final orderData = {
           'codigo_rastreio': _trackingCodeController.text.trim().isEmpty

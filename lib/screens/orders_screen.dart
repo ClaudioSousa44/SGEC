@@ -89,7 +89,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     try {
       // Buscar unidades para obter lista de blocos e apartamentos
       final units = await ResidentsService.getUnits();
-      
+
       // Extrair blocos únicos
       final blocks = units.map((u) => u.block).toSet().toList();
       blocks.sort();
@@ -183,9 +183,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
     // Filtrar por bloco
     if (_selectedBlock != null && _selectedBlock!.isNotEmpty) {
-      filtered = filtered
-          .where((order) => order.block == _selectedBlock)
-          .toList();
+      filtered =
+          filtered.where((order) => order.block == _selectedBlock).toList();
     }
 
     // Filtrar por apartamento
@@ -382,12 +381,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
         items: [
           const DropdownMenuItem<String>(
             value: null,
-            child: Text('Todos os blocos'),
+            child: Text(
+              'Todos os blocos',
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           ..._availableBlocks.map((block) {
             return DropdownMenuItem<String>(
               value: block,
-              child: Text(block),
+              child: Text(
+                block,
+                overflow: TextOverflow.ellipsis,
+              ),
             );
           }),
         ],
@@ -406,9 +411,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
       child: DropdownButtonFormField<String>(
         value: _selectedApartment,
         decoration: InputDecoration(
-          hintText: _selectedBlock == null
-              ? 'Selecione um bloco'
-              : 'Todos os apartamentos',
+          hintText:
+              _selectedBlock == null ? 'Selecione um bloco' : 'Todos os aptos',
           hintStyle: const TextStyle(
             color: Color(0xFF7F8C8D),
             fontSize: 14,
@@ -444,12 +448,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
         items: [
           const DropdownMenuItem<String>(
             value: null,
-            child: Text('Todos os apartamentos'),
+            child: Text(
+              'Todos os aptos',
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           ..._availableApartments.map((apartment) {
             return DropdownMenuItem<String>(
               value: apartment,
-              child: Text(apartment),
+              child: Text(
+                apartment,
+                overflow: TextOverflow.ellipsis,
+              ),
             );
           }),
         ],
@@ -579,6 +589,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
           ],
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Ícone do pacote
             Container(
@@ -601,6 +612,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     order.recipient,
@@ -638,10 +650,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
               ),
             ),
 
+            const SizedBox(width: 8),
+
             // Status
             Flexible(
+              fit: FlexFit.loose,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                constraints: const BoxConstraints(maxWidth: 100),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
                   color: isDelivered
                       ? const Color(0xFFE8F5E8)
@@ -650,6 +666,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
                       width: 8,
@@ -661,12 +678,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     Flexible(
                       child: Text(
                         order.status,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w500,
                           color: isDelivered
                               ? const Color(0xFF2E7D32)
@@ -674,6 +691,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
+                        softWrap: false,
                       ),
                     ),
                   ],

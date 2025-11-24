@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'debug_scan_screen.dart';
+import 'manual_register_screen.dart';
+import 'camera_screen.dart';
 import '../services/orders_service.dart';
 import '../services/residents_service.dart';
 import '../services/storage_service.dart';
@@ -36,6 +39,21 @@ class ScanResultScreen extends StatefulWidget {
 
 class _ScanResultScreenState extends State<ScanResultScreen> {
   bool _isCreatingOrder = false;
+
+  /// Gera um código de rastreio único combinando "BR" com um código único
+  /// Formato: BR + timestamp (últimos 10 dígitos) + número aleatório (4 dígitos)
+  String _generateUniqueTrackingCode() {
+    final random = Random();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    // Pega os últimos 10 dígitos do timestamp
+    final timestampStr = timestamp.toString();
+    final timestampPart = timestampStr.length > 10
+        ? timestampStr.substring(timestampStr.length - 10)
+        : timestampStr.padLeft(10, '0');
+    // Gera 4 dígitos aleatórios (1000 a 9999)
+    final randomPart = (1000 + random.nextInt(9000)).toString();
+    return 'BR$timestampPart$randomPart';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -228,9 +246,107 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
               ),
             ),
 
+            // Botões de ação quando houver erro na leitura
+            if (widget.residentName.contains('Nenhum') ||
+                widget.residentName.contains('não encontrado')) ...[
+              const SizedBox(height: 32),
+              Column(
+                children: [
+                  // Botão Tentar Novamente
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        // Voltar para a tela de câmera para tentar escanear novamente
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (context) => const CameraScreen(),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2196F3),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.refresh,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Tentar Novamente',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Botão Cadastrar Manualmente
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        // Navegar para tela de cadastro manual
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (context) => const ManualRegisterScreen(),
+                          ),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF2C3E50),
+                        side: const BorderSide(
+                          color: Color(0xFFE0E0E0),
+                          width: 1,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.edit_note,
+                            color: Color(0xFF2C3E50),
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Cadastrar Manualmente',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
             // Botões de ação (apenas se houver dados válidos)
             if (!widget.residentName.contains('Nenhum') &&
-                !widget.residentName.contains('não encontrado'))
+                !widget.residentName.contains('não encontrado')) ...[
+              const SizedBox(height: 32),
               Column(
                 children: [
                   // Botão Confirmar Entrega
@@ -304,7 +420,14 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                     height: 56,
                     child: OutlinedButton(
                       onPressed: () {
-                        _showEditDialog(context);
+                        // Navegar para tela de cadastro manual com a foto já tirada
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (context) => ManualRegisterScreen(
+                              preloadedPhotoPath: widget.imagePath,
+                            ),
+                          ),
+                        );
                       },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF2C3E50),
@@ -338,6 +461,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                   ),
                 ],
               ),
+            ],
 
             const SizedBox(height: 24),
           ],
@@ -445,17 +569,17 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     }
 
     print('🚀 Iniciando criação de encomenda...');
-    
+
     setState(() {
       _isCreatingOrder = true;
     });
-    
+
     // Mostrar overlay de loading
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => PopScope(
-        canPop: false,
+      builder: (context) => WillPopScope(
+        onWillPop: () async => false,
         child: const Center(
           child: Card(
             child: Padding(
@@ -492,7 +616,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       print('   Nome escaneado: ${widget.residentName}');
       print('   Bloco: ${widget.block}');
       print('   Apartamento: ${widget.apartment}');
-      
+
       final resident = await _findResident();
       if (resident == null) {
         final errorMsg = 'Morador não encontrado.\n\n'
@@ -506,7 +630,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
             '• A unidade (bloco/apartamento) está correta';
         throw ApiException(errorMsg);
       }
-      
+
       print('✅ Morador encontrado: ${resident.name} (ID: ${resident.id})');
 
       // Criar dados da encomenda
@@ -514,59 +638,68 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       print('   Porteiro ID: ${user.id}');
       print('   Morador ID: ${resident.id}');
       print('   Foto: ${widget.imagePath}');
-      
+
+      // Gerar código de rastreio único
+      final trackingCode = _generateUniqueTrackingCode();
+
       // Criar dados da encomenda
       final orderData = {
-        'codigo_rastreio': 'BR12731723', // Código de rastreio fixo para encomendas via scan
+        'codigo_rastreio':
+            trackingCode, // Código de rastreio único gerado automaticamente
         'descricao': '', // String vazia (igual ao manual quando não preenchido)
         'id_porteiro_recebimento': user.id,
         'id_morador_destinatario': resident.id,
       };
-      
+
       print('📋 Dados da encomenda (SCAN):');
-      print('   codigo_rastreio: ${orderData['codigo_rastreio']} (fixo)');
+      print(
+          '   codigo_rastreio: ${orderData['codigo_rastreio']} (gerado automaticamente)');
       print('   descricao: "${orderData['descricao']}"');
-      print('   id_porteiro_recebimento: ${orderData['id_porteiro_recebimento']}');
-      print('   id_morador_destinatario: ${orderData['id_morador_destinatario']}');
+      print(
+          '   id_porteiro_recebimento: ${orderData['id_porteiro_recebimento']}');
+      print(
+          '   id_morador_destinatario: ${orderData['id_morador_destinatario']}');
 
       // Criar encomenda com foto
       final photoFile = File(widget.imagePath!);
-      
+
       // Verificar se o arquivo existe
       if (!await photoFile.exists()) {
-        throw ApiException('Arquivo de foto não encontrado: ${widget.imagePath}');
+        throw ApiException(
+            'Arquivo de foto não encontrado: ${widget.imagePath}');
       }
-      
+
       print('📤 Enviando requisição para criar encomenda...');
-      
+
       // Adicionar timeout wrapper para garantir que não trave
-      final createdOrder = await OrdersService.createOrderWithPhoto(orderData, photoFile)
-          .timeout(
-            const Duration(seconds: 60),
-            onTimeout: () {
-              print('⏰ TIMEOUT: Criação de encomenda demorou mais de 60 segundos');
-              throw ApiException(
-                'A criação da encomenda está demorando muito. Verifique sua conexão e tente novamente.',
-              );
-            },
+      final createdOrder =
+          await OrdersService.createOrderWithPhoto(orderData, photoFile)
+              .timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          print('⏰ TIMEOUT: Criação de encomenda demorou mais de 60 segundos');
+          throw ApiException(
+            'A criação da encomenda está demorando muito. Verifique sua conexão e tente novamente.',
           );
-      
+        },
+      );
+
       print('✅ Encomenda criada com sucesso! ID: ${createdOrder.id}');
 
       if (!mounted) return;
-      
+
       // Fechar overlay de loading
       _closeLoadingDialog();
-      
+
       setState(() {
         _isCreatingOrder = false;
       });
-      
+
       // Aguardar um pouco para garantir que o estado foi atualizado
       await Future.delayed(const Duration(milliseconds: 100));
-      
+
       if (!mounted) return;
-      
+
       _showSuccessMessage(context);
     } catch (e, stackTrace) {
       // Log detalhado do erro para debug
@@ -577,28 +710,28 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         print('   Status Code: ${e.statusCode}');
       }
       print('   Stack Trace: $stackTrace');
-      
+
       // Fechar overlay de loading - GARANTIR que seja fechado
       _closeLoadingDialog();
-      
+
       if (!mounted) {
         print('⚠️ Widget não está montado, não é possível mostrar erro');
         return;
       }
-      
+
       // Garantir que o estado seja atualizado
       setState(() {
         _isCreatingOrder = false;
       });
-      
+
       // Aguardar um pouco para garantir que o estado foi atualizado
       await Future.delayed(const Duration(milliseconds: 300));
-      
+
       if (!mounted) return;
-      
+
       // Mostrar erro no front-end - SEMPRE exibir
       print('📢 Exibindo erro no front-end...');
-      
+
       // Primeiro, mostrar SnackBar imediatamente (mais confiável)
       if (mounted) {
         String errorMsg = _getErrorMessage(e);
@@ -634,7 +767,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
           ),
         );
       }
-      
+
       // Depois, tentar mostrar diálogo detalhado
       try {
         await Future.delayed(const Duration(milliseconds: 500));
@@ -655,7 +788,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         Navigator.of(context).pop();
         print('   ✅ Overlay fechado');
       } else {
-        print('   ⚠️ Não foi possível fechar overlay (canPop: ${mounted ? Navigator.of(context).canPop() : "widget não montado"})');
+        print(
+            '   ⚠️ Não foi possível fechar overlay (canPop: ${mounted ? Navigator.of(context).canPop() : "widget não montado"})');
       }
     } catch (closeError) {
       print('   ❌ Erro ao fechar overlay: $closeError');
@@ -681,15 +815,15 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       // Buscar todos os moradores e unidades
       final residents = await ResidentsService.getResidents();
       final units = await ResidentsService.getUnits();
-      
+
       print('   Total de moradores: ${residents.length}');
       print('   Total de unidades: ${units.length}');
-      
+
       if (residents.isEmpty) {
         print('⚠️ Nenhum morador encontrado no sistema');
         return null;
       }
-      
+
       if (units.isEmpty) {
         print('⚠️ Nenhuma unidade encontrada no sistema');
         return null;
@@ -713,15 +847,17 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       }
 
       if (matchingUnit == null) {
-        print('⚠️ Unidade não encontrada: Bloco $blockName, Apto $apartmentNumber');
+        print(
+            '⚠️ Unidade não encontrada: Bloco $blockName, Apto $apartmentNumber');
         print('   Unidades disponíveis:');
         for (final unit in units) {
           print('     - Bloco ${unit.block}, Apto ${unit.apartment}');
         }
         return null;
       }
-      
-      print('✅ Unidade encontrada: Bloco ${matchingUnit.block}, Apto ${matchingUnit.apartment} (ID: ${matchingUnit.id})');
+
+      print(
+          '✅ Unidade encontrada: Bloco ${matchingUnit.block}, Apto ${matchingUnit.apartment} (ID: ${matchingUnit.id})');
 
       // Encontrar o morador pelo nome e unidade
       final residentName = widget.residentName.trim();
@@ -751,11 +887,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         print(
             '⚠️ Morador não encontrado: $residentName na unidade ${matchingUnit.id}');
         // Se não encontrou pelo nome, retornar o primeiro morador da unidade
-        final residentsInUnit = residents
-            .where((r) => r.unitId == matchingUnit!.id)
-            .toList();
+        final residentsInUnit =
+            residents.where((r) => r.unitId == matchingUnit!.id).toList();
         if (residentsInUnit.isNotEmpty) {
-          print('⚠️ Usando primeiro morador da unidade: ${residentsInUnit.first.name}');
+          print(
+              '⚠️ Usando primeiro morador da unidade: ${residentsInUnit.first.name}');
           return residentsInUnit.first;
         }
       }
@@ -768,24 +904,6 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       print('   Stack Trace: $stackTrace');
       return null;
     }
-  }
-
-  void _showEditDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Editar Dados'),
-        content: const Text(
-          'Funcionalidade de edição será implementada em breve.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
   }
 
   String _getErrorMessage(dynamic error) {
@@ -804,11 +922,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       return 'Morador não encontrado. Verifique os dados escaneados.';
     } else if (error.toString().contains('Usuário não autenticado')) {
       return 'Sessão expirada. Faça login novamente.';
-    } else if (error.toString().contains('timeout') || 
-               error.toString().contains('Timeout')) {
+    } else if (error.toString().contains('timeout') ||
+        error.toString().contains('Timeout')) {
       return 'Tempo esgotado. Verifique sua conexão.';
     } else if (error.toString().contains('SocketException') ||
-               error.toString().contains('Failed host lookup')) {
+        error.toString().contains('Failed host lookup')) {
       return 'Sem conexão. Verifique sua internet.';
     }
     return 'Erro: ${error.toString()}';
@@ -817,10 +935,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   void _showErrorDialog(BuildContext context, dynamic error) {
     // Verificar se o contexto está montado
     if (!context.mounted) {
-      print('⚠️ Contexto não está montado, não é possível mostrar diálogo de erro');
+      print(
+          '⚠️ Contexto não está montado, não é possível mostrar diálogo de erro');
       return;
     }
-    
+
     String errorTitle = 'Erro ao Criar Encomenda';
     String errorMessage = 'Ocorreu um erro ao criar a encomenda.';
     String? errorDetails;
@@ -831,15 +950,17 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       errorMessage = error.message;
       if (error.statusCode != null) {
         errorDetails = 'Código de status: ${error.statusCode}';
-        
+
         // Mensagens mais amigáveis baseadas no status code
         if (error.statusCode == 400) {
-          errorMessage = 'Dados inválidos. Verifique as informações escaneadas.';
+          errorMessage =
+              'Dados inválidos. Verifique as informações escaneadas.';
           errorDetails = 'Detalhes: ${error.message}';
         } else if (error.statusCode == 401) {
           errorMessage = 'Não autorizado. Faça login novamente.';
         } else if (error.statusCode == 404) {
-          errorMessage = 'Recurso não encontrado. Verifique se o morador existe no sistema.';
+          errorMessage =
+              'Recurso não encontrado. Verifique se o morador existe no sistema.';
         } else if (error.statusCode == 500) {
           errorMessage = 'Erro no servidor. Tente novamente mais tarde.';
           errorDetails = 'Erro interno do servidor';
@@ -847,7 +968,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
       }
     } else if (error.toString().contains('Morador não encontrado')) {
       errorTitle = 'Morador Não Encontrado';
-      errorMessage = 'Não foi possível encontrar o morador com os dados escaneados.';
+      errorMessage =
+          'Não foi possível encontrar o morador com os dados escaneados.';
       errorDetails = 'Verifique se:\n'
           '• O nome está correto\n'
           '• O bloco e apartamento estão corretos\n'
@@ -855,14 +977,16 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     } else if (error.toString().contains('Usuário não autenticado')) {
       errorTitle = 'Sessão Expirada';
       errorMessage = 'Sua sessão expirou. Faça login novamente.';
-    } else if (error.toString().contains('timeout') || 
-               error.toString().contains('Timeout')) {
+    } else if (error.toString().contains('timeout') ||
+        error.toString().contains('Timeout')) {
       errorTitle = 'Tempo Esgotado';
-      errorMessage = 'A requisição demorou muito para responder. Verifique sua conexão com a internet.';
+      errorMessage =
+          'A requisição demorou muito para responder. Verifique sua conexão com a internet.';
     } else if (error.toString().contains('SocketException') ||
-               error.toString().contains('Failed host lookup')) {
+        error.toString().contains('Failed host lookup')) {
       errorTitle = 'Sem Conexão';
-      errorMessage = 'Não foi possível conectar ao servidor. Verifique sua conexão com a internet.';
+      errorMessage =
+          'Não foi possível conectar ao servidor. Verifique sua conexão com a internet.';
     } else {
       errorDetails = error.toString();
     }
@@ -971,7 +1095,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
   void _showSuccessMessage(BuildContext context) {
     print('✅ Mostrando mensagem de sucesso');
-    
+
     // Mostrar diálogo de sucesso primeiro
     showDialog(
       context: context,
@@ -1018,7 +1142,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         ],
       ),
     );
-    
+
     // Fallback: também mostrar SnackBar
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
