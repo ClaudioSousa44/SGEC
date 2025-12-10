@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
+import 'dart:convert';
 import '../services/scan_service.dart';
 import 'scan_result_screen.dart';
 
@@ -69,9 +70,13 @@ class _CameraScreenState extends State<CameraScreen> {
       _isCapturing = true;
     });
 
+    File? imageFile;
+    String? imagePath;
+
     try {
       final XFile photo = await _cameraController!.takePicture();
-      final imageFile = File(photo.path);
+      imageFile = File(photo.path);
+      imagePath = imageFile.path;
 
       if (mounted) {
         // Mostrar loading
@@ -102,13 +107,16 @@ class _CameraScreenState extends State<CameraScreen> {
         }
 
         // Processar resposta da API
-        _processScanResult(cleanData, imageFile.path, debugInfo);
+        _processScanResult(cleanData, imagePath, debugInfo);
       }
     } catch (e) {
       if (mounted) {
         Navigator.of(context).pop(); // Fechar loading se estiver aberto
         print('❌ Erro ao escanear foto: $e');
-        _showErrorDialog('Erro ao escanear foto: ${e.toString()}');
+        
+        // Tratar erro/timeout como "não encontrado"
+        // Navegar diretamente para a tela de resultado com dados vazios
+        _handleScanError(imagePath, e);
       }
     } finally {
       if (mounted) {
@@ -156,8 +164,11 @@ class _CameraScreenState extends State<CameraScreen> {
         print('📊 Candidates: ${data['candidates']}');
         print('📊 Reason: ${data['reason']}');
 
-        // Extrair reason se existir
-        reason = data['reason'] as String?;
+        // Extrair reason se existir e corrigir encoding
+        final rawReason = data['reason'] as String?;
+        if (rawReason != null) {
+          reason = _fixEncoding(rawReason);
+        }
 
         // Extrair names_with_units_info
         if (data.containsKey('names_with_units_info')) {
@@ -264,6 +275,82 @@ class _CameraScreenState extends State<CameraScreen> {
         ],
       ),
     );
+  }
+
+  /// Corrige problemas de encoding UTF-8 mal interpretado
+  /// Converte caracteres como "Ãºnico" para "único"
+  String _fixEncoding(String text) {
+    try {
+      // Tentar corrigir encoding comum: UTF-8 interpretado como Latin-1
+      // "Ãºnico" -> "único"
+      final bytes = latin1.encode(text);
+      final corrected = utf8.decode(bytes);
+      
+      // Substituições manuais para casos comuns
+      return corrected
+          .replaceAll('Ãºnico', 'único')
+          .replaceAll('Ãºnica', 'única')
+          .replaceAll('Ãº', 'ú')
+          .replaceAll('Ã¡', 'á')
+          .replaceAll('Ã©', 'é')
+          .replaceAll('Ã­', 'í')
+          .replaceAll('Ã³', 'ó')
+          .replaceAll('Ã§', 'ç')
+          .replaceAll('Ã£', 'ã')
+          .replaceAll('Ãª', 'ê')
+          .replaceAll('Ã´', 'ô');
+    } catch (e) {
+      // Se falhar, fazer substituições manuais mesmo assim
+      return text
+          .replaceAll('Ãºnico', 'único')
+          .replaceAll('Ãºnica', 'única')
+          .replaceAll('Ãº', 'ú')
+          .replaceAll('Ã¡', 'á')
+          .replaceAll('Ã©', 'é')
+          .replaceAll('Ã­', 'í')
+          .replaceAll('Ã³', 'ó')
+          .replaceAll('Ã§', 'ç')
+          .replaceAll('Ã£', 'ã')
+          .replaceAll('Ãª', 'ê')
+          .replaceAll('Ã´', 'ô');
+    }
+  }
+
+  /// Trata erros de escaneamento (timeout, erro de conexão, etc.)
+  /// Navega para a tela de resultado como se não tivesse encontrado dados
+  void _handleScanError(String? imagePath, dynamic error) {
+    print('⚠️ Tratando erro como "não encontrado": $error');
+    
+    // Navegar para a tela de resultado com dados vazios
+    // Isso mostrará os botões de "Tentar Novamente" e "Cadastrar Manualmente"
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => ScanResultScreen(
+          residentName: 'Nenhum dado encontrado',
+          block: 'Nenhum dado encontrado',
+          apartment: 'Nenhum dado encontrado',
+          imagePath: imagePath,
+          reason: _getErrorMessage(error),
+        ),
+      ),
+    );
+  }
+
+  /// Extrai mensagem de erro amigável
+  String _getErrorMessage(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+    
+    if (errorString.contains('timeout') || errorString.contains('timed out')) {
+      return 'Tempo de espera esgotado. A requisição demorou mais de 60 segundos.';
+    } else if (errorString.contains('socket') || 
+               errorString.contains('connection') ||
+               errorString.contains('network')) {
+      return 'Erro de conexão. Verifique sua internet e tente novamente.';
+    } else if (errorString.contains('failed host lookup')) {
+      return 'Não foi possível conectar ao servidor. Verifique sua conexão.';
+    }
+    
+    return 'Erro ao processar a imagem. Tente novamente ou cadastre manualmente.';
   }
 
   void _showErrorDialog(String message) {

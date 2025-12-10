@@ -245,8 +245,7 @@ class OrderDetailsScreen extends StatelessWidget {
                 // Data de Recebimento
                 _buildInfoCard(
                   title: 'Data de Recebimento',
-                  value:
-                      order['receivedDate'] ?? '15 de Julho de 2024, 10:30',
+                  value: _formatReceivedDate(order['receivedDate']),
                 ),
 
                 const SizedBox(height: 12),
@@ -368,6 +367,61 @@ class OrderDetailsScreen extends StatelessWidget {
     );
   }
 
+
+  /// Formata a data de recebimento de forma amigável em português
+  String _formatReceivedDate(dynamic dateValue) {
+    if (dateValue == null) {
+      return 'Data não informada';
+    }
+
+    try {
+      DateTime date;
+      
+      // Se for string, tentar fazer parse
+      if (dateValue is String) {
+        // Remover milissegundos se existirem
+        String cleanDate = dateValue;
+        if (cleanDate.contains('.')) {
+          cleanDate = cleanDate.split('.')[0];
+        }
+        // Remover espaços extras
+        cleanDate = cleanDate.trim();
+        date = DateTime.parse(cleanDate);
+      } else if (dateValue is DateTime) {
+        date = dateValue;
+      } else {
+        return 'Data inválida';
+      }
+
+      // Nomes dos meses em português
+      const meses = [
+        'janeiro',
+        'fevereiro',
+        'março',
+        'abril',
+        'maio',
+        'junho',
+        'julho',
+        'agosto',
+        'setembro',
+        'outubro',
+        'novembro',
+        'dezembro',
+      ];
+
+      // Formatar dia, mês, ano e hora
+      final dia = date.day;
+      final mes = meses[date.month - 1];
+      final ano = date.year;
+      final hora = date.hour.toString().padLeft(2, '0');
+      final minuto = date.minute.toString().padLeft(2, '0');
+
+      return '$dia de $mes de $ano, às $hora:$minuto';
+    } catch (e) {
+      // Se falhar, retornar o valor original como fallback
+      return dateValue.toString();
+    }
+  }
 
   void _showFullScreenImage(BuildContext context, String imageUrl) {
     Navigator.of(context).push(

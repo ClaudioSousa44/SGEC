@@ -7,10 +7,10 @@ import 'api_service.dart';
 class ScanService {
   // URL base da API de escaneamento
   static const String scanApiUrl =
-      'http://condo-api-mysql.brazilsouth.azurecontainer.io:8000';
+      'https://condo-api.greenmeadow-9d169997.brazilsouth.azurecontainerapps.io/';
 
   // Timeout para requisições
-  static const Duration timeoutDuration = Duration(seconds: 30);
+  static const Duration timeoutDuration = Duration(seconds: 60);
 
   /// Escaneia uma foto e retorna os dados extraídos
   ///
